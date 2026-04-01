@@ -85,4 +85,5 @@ export interface Preset {
   blocks: NewsletterBlock[];
   settings: NewsletterSettings;
   createdAt: number;
+  uid: string;
 }

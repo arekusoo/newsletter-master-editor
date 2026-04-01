@@ -1,0 +1,66 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: presets
+    // Document ID: {presetId}
+    // Fields:
+    //   - id: string (required) - Unique identifier
+    //   - name: string (required) - Name of the template
+    //   - blocks: list (required) - List of newsletter blocks
+    //   - settings: map (required) - Newsletter settings
+    //   - uid: string (required) - Owner's user ID
+    //   - createdAt: timestamp (optional) - Creation timestamp
+    //   - updatedAt: timestamp (optional) - Last update timestamp
+    //
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "christian.silva@ufam.edu.br" && request.auth.token.email_verified == true));
+    }
+
+    function isValidPreset(data) {
+      return data.keys().hasAll(['id', 'name', 'blocks', 'settings', 'uid']) &&
+             data.id is string &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.blocks is list &&
+             data.settings is map &&
+             data.uid is string;
+    }
+
+    match /presets/{presetId} {
+      // Allow anyone to read presets (publicly accessible templates)
+      allow read: if true;
+      
+      // Only authenticated owners or admins can create/update/delete
+      allow create: if isAuthenticated() && 
+                      isValidPreset(request.resource.data) && 
+                      request.resource.data.uid == request.auth.uid;
+                      
+      allow update: if (isOwner(resource.data.uid) || isAdmin()) && 
+                      isValidPreset(request.resource.data) &&
+                      request.resource.data.uid == resource.data.uid;
+                      
+      allow delete: if isOwner(resource.data.uid) || isAdmin();
+    }
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(userId) || isAdmin();
+    }
+  }
+}

@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Download, Layout as LayoutIcon, Laptop, Smartphone, Eye, X, Search, Trash2, Edit2, Plus, CheckCircle2, Bookmark, Link } from 'lucide-react';
+import { Download, Layout as LayoutIcon, Laptop, Smartphone, Eye, X, Search, Trash2, Edit2, Plus, CheckCircle2, Bookmark, Link, LogIn, LogOut, User as UserIcon } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import { NewsletterBlock, NewsletterSettings, BlockType, Preset } from './types';
 import BlocksSidebar from './components/BlocksSidebar';
@@ -15,6 +15,9 @@ import PresetModal from './components/PresetModal';
 import ConfirmModal from './components/ConfirmModal';
 import HowToUseModal from './components/HowToUseModal';
 import { exportToHtml } from './exportHtml';
+import { auth, db, loginWithGoogle, logout, handleFirestoreError, OperationType } from './firebase';
+import { onAuthStateChanged, User } from 'firebase/auth';
+import { collection, onSnapshot, query, orderBy, setDoc, doc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 
 export default function App() {
   const [blocks, setBlocks] = useState<NewsletterBlock[]>([]);
@@ -31,44 +34,62 @@ export default function App() {
   const [isHowToUseOpen, setIsHowToUseOpen] = useState(false);
   const [activePreset, setActivePreset] = useState<Preset | null>(null);
   const [iconPickerCallback, setIconPickerCallback] = useState<((name: string) => void) | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [settings, setSettings] = useState<NewsletterSettings>({
     backgroundColor: '#f1f5f9',
     contentBackgroundColor: '#ffffff',
     fontFamily: 'Poppins'
   });
 
-  // Load presets from localStorage on mount
+  // Auth Listener
   useEffect(() => {
-    const savedPresets = localStorage.getItem('newsletter_presets');
-    if (savedPresets) {
-      try {
-        setPresets(JSON.parse(savedPresets));
-      } catch (e) {
-        console.error('Error loading presets:', e);
-      }
-    }
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+    return () => unsubscribe();
   }, []);
 
-  // Save presets to localStorage whenever they change
+  // Firestore Presets Listener
   useEffect(() => {
-    localStorage.setItem('newsletter_presets', JSON.stringify(presets));
-  }, [presets]);
+    const q = query(collection(db, 'presets'), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const loadedPresets: Preset[] = [];
+      snapshot.forEach((doc) => {
+        loadedPresets.push(doc.data() as Preset);
+      });
+      setPresets(loadedPresets);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'presets');
+    });
+    return () => unsubscribe();
+  }, []);
 
-  const savePreset = (name: string) => {
+  const savePreset = async (name: string) => {
+    if (!user) {
+      toast.error('Você precisa estar logado para salvar modelos.');
+      return;
+    }
+
+    const id = Math.random().toString(36).substr(2, 9);
     const newPreset: Preset = {
-      id: Math.random().toString(36).substr(2, 9),
+      id,
       name,
       blocks: JSON.parse(JSON.stringify(blocks)),
       settings: { ...settings },
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      uid: user.uid
     };
 
-    setPresets([newPreset, ...presets]);
-    setIsSaveModalOpen(false);
-    toast.success('Layout salvo com sucesso!', {
-      description: `O layout "${name}" foi adicionado aos seus presets.`,
-      icon: <CheckCircle2 className="text-emerald-500" size={16} />
-    });
+    try {
+      await setDoc(doc(db, 'presets', id), newPreset);
+      setIsSaveModalOpen(false);
+      toast.success('Layout salvo com sucesso!', {
+        description: `O layout "${name}" foi adicionado aos seus presets.`,
+        icon: <CheckCircle2 className="text-emerald-500" size={16} />
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, `presets/${id}`);
+    }
   };
 
   const loadPreset = (preset: Preset) => {
@@ -97,14 +118,6 @@ export default function App() {
     }
   };
 
-  const confirmDeletePreset = () => {
-    if (activePreset) {
-      setPresets(presets.filter(p => p.id !== activePreset.id));
-      toast.info('Layout excluído.');
-      setActivePreset(null);
-    }
-  };
-
   const renamePreset = (id: string) => {
     const preset = presets.find(p => p.id === id);
     if (!preset) return;
@@ -112,12 +125,29 @@ export default function App() {
     setIsRenameModalOpen(true);
   };
 
-  const confirmRenamePreset = (newName: string) => {
+  const confirmDeletePreset = async () => {
     if (activePreset) {
-      setPresets(presets.map(p => p.id === activePreset.id ? { ...p, name: newName } : p));
-      setIsRenameModalOpen(false);
-      toast.success('Layout renomeado.');
-      setActivePreset(null);
+      try {
+        await deleteDoc(doc(db, 'presets', activePreset.id));
+        toast.info('Layout excluído.');
+        setActivePreset(null);
+        setIsConfirmDeleteOpen(false);
+      } catch (error) {
+        handleFirestoreError(error, OperationType.DELETE, `presets/${activePreset.id}`);
+      }
+    }
+  };
+
+  const confirmRenamePreset = async (newName: string) => {
+    if (activePreset) {
+      try {
+        await setDoc(doc(db, 'presets', activePreset.id), { ...activePreset, name: newName });
+        setIsRenameModalOpen(false);
+        toast.success('Layout renomeado.');
+        setActivePreset(null);
+      } catch (error) {
+        handleFirestoreError(error, OperationType.UPDATE, `presets/${activePreset.id}`);
+      }
     }
   };
 
@@ -249,6 +279,30 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-4">
+          {user ? (
+            <div className="flex items-center gap-3 pr-2 border-r border-slate-200">
+              <div className="flex flex-col items-end">
+                <span className="text-xs font-bold text-slate-800 leading-none">{user.displayName}</span>
+                <button onClick={logout} className="text-[10px] text-slate-500 hover:text-red-600 transition-colors">Sair</button>
+              </div>
+              {user.photoURL ? (
+                <img src={user.photoURL} alt={user.displayName || ''} className="w-8 h-8 rounded-full border border-slate-200" referrerPolicy="no-referrer" />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                  <UserIcon size={16} />
+                </div>
+              )}
+            </div>
+          ) : (
+            <button 
+              onClick={loginWithGoogle}
+              className="flex items-center gap-2 px-4 py-2 bg-white text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-50 transition-all border border-slate-200"
+            >
+              <LogIn size={18} />
+              Entrar
+            </button>
+          )}
+
           <button 
             onClick={() => setIsSaveModalOpen(true)}
             className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 text-emerald-700 rounded-xl font-bold text-sm hover:bg-emerald-100 transition-all active:scale-95 border border-emerald-100"
@@ -284,6 +338,7 @@ export default function App() {
           onLoadPreset={loadPreset}
           onDeletePreset={deletePreset}
           onRenamePreset={renamePreset}
+          currentUser={user}
         />
 
         {/* Canvas Area */}

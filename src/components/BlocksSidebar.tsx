@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Type, Image as ImageIcon, Minus, Star, LayoutGrid, Columns2, Columns3, MousePointer2, Smile, Bookmark, Search, Trash2, Edit2, Clock } from 'lucide-react';
+import { Type, Image as ImageIcon, Minus, Star, LayoutGrid, Columns2, Columns3, MousePointer2, Smile, Bookmark, Search, Trash2, Edit2, Clock, User as UserIcon } from 'lucide-react';
 import { BlockType, Preset } from '../types';
+import { User } from 'firebase/auth';
 
 interface BlocksSidebarProps {
   activeTab: 'blocks' | 'layouts' | 'models';
@@ -9,6 +10,7 @@ interface BlocksSidebarProps {
   onLoadPreset: (preset: Preset) => void;
   onDeletePreset: (id: string) => void;
   onRenamePreset: (id: string) => void;
+  currentUser: User | null;
 }
 
 const NewsletterPreview: React.FC<{ blocks: any[], settings: any }> = ({ blocks, settings }) => {
@@ -42,7 +44,8 @@ const BlocksSidebar: React.FC<BlocksSidebarProps> = ({
   presets, 
   onLoadPreset, 
   onDeletePreset, 
-  onRenamePreset 
+  onRenamePreset,
+  currentUser
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -170,22 +173,24 @@ const BlocksSidebar: React.FC<BlocksSidebarProps> = ({
                             {new Date(preset.createdAt).toLocaleDateString()}
                           </div>
                         </div>
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); onRenamePreset(preset.id); }}
-                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-all"
-                            title="Renomear"
-                          >
-                            <Edit2 size={12} />
-                          </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); onDeletePreset(preset.id); }}
-                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-all"
-                            title="Excluir"
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                        </div>
+                        {currentUser?.uid === preset.uid && (
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); onRenamePreset(preset.id); }}
+                              className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-all"
+                              title="Renomear"
+                            >
+                              <Edit2 size={12} />
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); onDeletePreset(preset.id); }}
+                              className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-all"
+                              title="Excluir"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                     <button

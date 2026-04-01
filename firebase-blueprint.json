@@ -1,0 +1,25 @@
+{
+  "entities": {
+    "Preset": {
+      "title": "Preset",
+      "description": "A saved newsletter template",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier" },
+        "name": { "type": "string", "description": "Name of the template" },
+        "blocks": { "type": "array", "description": "List of newsletter blocks" },
+        "settings": { "type": "object", "description": "Newsletter settings" },
+        "uid": { "type": "string", "description": "Owner's user ID" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last update timestamp" }
+      },
+      "required": ["id", "name", "blocks", "settings", "uid"]
+    }
+  },
+  "firestore": {
+    "/presets/{presetId}": {
+      "schema": "Preset",
+      "description": "Collection of newsletter presets"
+    }
+  }
+}
