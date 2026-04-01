@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Download, Layout as LayoutIcon, Laptop, Smartphone, Eye, X, Search, Trash2, Edit2, Plus, CheckCircle2, Bookmark, Link, LogIn, LogOut, User as UserIcon } from 'lucide-react';
+import { Download, Layout as LayoutIcon, Laptop, Smartphone, Eye, X, Search, Trash2, Edit2, Plus, CheckCircle2, Bookmark, Link } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import { NewsletterBlock, NewsletterSettings, BlockType, Preset } from './types';
 import BlocksSidebar from './components/BlocksSidebar';
@@ -15,9 +15,8 @@ import PresetModal from './components/PresetModal';
 import ConfirmModal from './components/ConfirmModal';
 import HowToUseModal from './components/HowToUseModal';
 import { exportToHtml } from './exportHtml';
-import { auth, db, loginWithGoogle, logout, handleFirestoreError, OperationType } from './firebase';
-import { onAuthStateChanged, User } from 'firebase/auth';
-import { collection, onSnapshot, query, orderBy, setDoc, doc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { db, handleFirestoreError, OperationType } from './firebase';
+import { collection, onSnapshot, query, orderBy, setDoc, doc, deleteDoc } from 'firebase/firestore';
 
 export default function App() {
   const [blocks, setBlocks] = useState<NewsletterBlock[]>([]);
@@ -34,20 +33,11 @@ export default function App() {
   const [isHowToUseOpen, setIsHowToUseOpen] = useState(false);
   const [activePreset, setActivePreset] = useState<Preset | null>(null);
   const [iconPickerCallback, setIconPickerCallback] = useState<((name: string) => void) | null>(null);
-  const [user, setUser] = useState<User | null>(null);
   const [settings, setSettings] = useState<NewsletterSettings>({
     backgroundColor: '#f1f5f9',
     contentBackgroundColor: '#ffffff',
     fontFamily: 'Poppins'
   });
-
-  // Auth Listener
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-    });
-    return () => unsubscribe();
-  }, []);
 
   // Firestore Presets Listener
   useEffect(() => {
@@ -65,11 +55,6 @@ export default function App() {
   }, []);
 
   const savePreset = async (name: string) => {
-    if (!user) {
-      toast.error('Você precisa estar logado para salvar modelos.');
-      return;
-    }
-
     const id = Math.random().toString(36).substr(2, 9);
     const newPreset: Preset = {
       id,
@@ -77,7 +62,7 @@ export default function App() {
       blocks: JSON.parse(JSON.stringify(blocks)),
       settings: { ...settings },
       createdAt: Date.now(),
-      uid: user.uid
+      uid: 'anonymous'
     };
 
     try {
@@ -279,30 +264,6 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-4">
-          {user ? (
-            <div className="flex items-center gap-3 pr-2 border-r border-slate-200">
-              <div className="flex flex-col items-end">
-                <span className="text-xs font-bold text-slate-800 leading-none">{user.displayName}</span>
-                <button onClick={logout} className="text-[10px] text-slate-500 hover:text-red-600 transition-colors">Sair</button>
-              </div>
-              {user.photoURL ? (
-                <img src={user.photoURL} alt={user.displayName || ''} className="w-8 h-8 rounded-full border border-slate-200" referrerPolicy="no-referrer" />
-              ) : (
-                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
-                  <UserIcon size={16} />
-                </div>
-              )}
-            </div>
-          ) : (
-            <button 
-              onClick={loginWithGoogle}
-              className="flex items-center gap-2 px-4 py-2 bg-white text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-50 transition-all border border-slate-200"
-            >
-              <LogIn size={18} />
-              Entrar
-            </button>
-          )}
-
           <button 
             onClick={() => setIsSaveModalOpen(true)}
             className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 text-emerald-700 rounded-xl font-bold text-sm hover:bg-emerald-100 transition-all active:scale-95 border border-emerald-100"
@@ -338,7 +299,6 @@ export default function App() {
           onLoadPreset={loadPreset}
           onDeletePreset={deletePreset}
           onRenamePreset={renamePreset}
-          currentUser={user}
         />
 
         {/* Canvas Area */}

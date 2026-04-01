@@ -43,19 +43,8 @@ service cloud.firestore {
     }
 
     match /presets/{presetId} {
-      // Allow anyone to read presets (publicly accessible templates)
-      allow read: if true;
-      
-      // Only authenticated owners or admins can create/update/delete
-      allow create: if isAuthenticated() && 
-                      isValidPreset(request.resource.data) && 
-                      request.resource.data.uid == request.auth.uid;
-                      
-      allow update: if (isOwner(resource.data.uid) || isAdmin()) && 
-                      isValidPreset(request.resource.data) &&
-                      request.resource.data.uid == resource.data.uid;
-                      
-      allow delete: if isOwner(resource.data.uid) || isAdmin();
+      // Allow anyone to read, create, update, and delete presets
+      allow read, create, update, delete: if true;
     }
 
     match /users/{userId} {
