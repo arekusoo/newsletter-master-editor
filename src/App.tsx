@@ -21,6 +21,7 @@ import { collection, onSnapshot, query, orderBy, setDoc, doc, deleteDoc } from '
 export default function App() {
   const [blocks, setBlocks] = useState<NewsletterBlock[]>([]);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
+  const [selectedSubBlockIndex, setSelectedSubBlockIndex] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<'blocks' | 'layouts' | 'models'>('blocks');
   const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'desktop' | 'mobile'>('desktop');
@@ -209,6 +210,14 @@ export default function App() {
           variant: 'button'
         };
         break;
+      case 'flex-row':
+        data = {
+          ...data,
+          items: [],
+          gap: 10,
+          alignItems: 'center'
+        };
+        break;
     }
 
     const newBlock: NewsletterBlock = { id, type: type as BlockType, data: { ...data, ...customData } };
@@ -216,8 +225,46 @@ export default function App() {
     setSelectedBlockId(id);
   };
 
-  const updateBlock = (id: string, data: any) => {
-    setBlocks(blocks.map(b => b.id === id ? { ...b, data } : b));
+  const updateBlock = (id: string, data: any, topLevelProps?: Partial<NewsletterBlock>, subIndex?: number | null) => {
+    const targetSubIndex = subIndex !== undefined ? subIndex : selectedSubBlockIndex;
+    setBlocks(prevBlocks => prevBlocks.map(b => {
+      if (b.id === id) {
+        // If we are updating a sub-block inside a layout
+        if (targetSubIndex !== null && (b.type === 'column-layout' || b.type === 'flex-row')) {
+          const newItems = [...b.data.items];
+          const currentItem = newItems[targetSubIndex];
+          if (!currentItem) return b;
+          
+          newItems[targetSubIndex] = {
+            ...currentItem,
+            data: { ...currentItem.data, ...data },
+            ...topLevelProps
+          };
+          
+          return { ...b, data: { ...b.data, items: newItems } };
+        }
+        return { ...b, data: { ...b.data, ...data }, ...topLevelProps };
+      }
+      return b;
+    }));
+  };
+
+  const duplicateBlock = (id: string) => {
+    const index = blocks.findIndex(b => b.id === id);
+    if (index === -1) return;
+    
+    const blockToDuplicate = blocks[index];
+    const newId = Math.random().toString(36).substr(2, 9);
+    const duplicatedBlock: NewsletterBlock = {
+      ...JSON.parse(JSON.stringify(blockToDuplicate)),
+      id: newId
+    };
+    
+    const newBlocks = [...blocks];
+    newBlocks.splice(index + 1, 0, duplicatedBlock);
+    setBlocks(newBlocks);
+    setSelectedBlockId(newId);
+    toast.success('Bloco duplicado!');
   };
 
   const deleteBlock = (id: string) => {
@@ -299,6 +346,12 @@ export default function App() {
           onLoadPreset={loadPreset}
           onDeletePreset={deletePreset}
           onRenamePreset={renamePreset}
+          onAddAIGeneratedBlocks={(newBlocks) => {
+            setBlocks([...blocks, ...newBlocks]);
+            toast.success('Modelo gerado com IA!', {
+              description: `${newBlocks.length} blocos foram adicionados.`,
+            });
+          }}
         />
 
         {/* Canvas Area */}
@@ -306,9 +359,14 @@ export default function App() {
           <NewsletterCanvas
             blocks={blocks}
             selectedBlockId={selectedBlockId}
-            onSelectBlock={setSelectedBlockId}
+            selectedSubBlockIndex={selectedSubBlockIndex}
+            onSelectBlock={(id, subIndex) => {
+              setSelectedBlockId(id);
+              setSelectedSubBlockIndex(subIndex ?? null);
+            }}
             onDeleteBlock={deleteBlock}
             onMoveBlock={moveBlock}
+            onDuplicateBlock={duplicateBlock}
             onAddBlock={addBlock}
             onUpdateBlock={updateBlock}
             backgroundColor={settings.backgroundColor}
@@ -320,6 +378,7 @@ export default function App() {
         {/* Right Sidebar */}
         <PropertiesPanel
           selectedBlock={selectedBlock}
+          selectedSubBlockIndex={selectedSubBlockIndex}
           onUpdateBlock={updateBlock}
           settings={settings}
           onUpdateSettings={(s) => setSettings({ ...settings, ...s })}
@@ -376,11 +435,13 @@ export default function App() {
                 <X size={20} className="text-slate-500" />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto bg-slate-100 p-8 flex justify-center">
-              <div 
-                className={`bg-white shadow-lg transition-all duration-300 ${viewMode === 'mobile' ? 'w-[375px]' : 'w-[600px]'}`}
-                dangerouslySetInnerHTML={{ __html: exportToHtml(blocks, settings) }}
-              />
+            <div className="flex-1 overflow-y-auto bg-slate-100 p-8">
+              <div className="min-h-full flex flex-col items-center">
+                <div 
+                  className={`bg-white shadow-lg transition-all duration-300 mb-8 ${viewMode === 'mobile' ? 'w-[375px]' : 'w-[600px]'}`}
+                  dangerouslySetInnerHTML={{ __html: exportToHtml(blocks, settings) }}
+                />
+              </div>
             </div>
           </div>
         </div>

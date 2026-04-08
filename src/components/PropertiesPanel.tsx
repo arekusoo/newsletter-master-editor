@@ -1,13 +1,14 @@
 import React from 'react';
 import { NewsletterBlock, NewsletterSettings } from '../types';
 import * as LucideIcons from 'lucide-react';
-import { AlignLeft, AlignCenter, AlignRight, Bold, Italic, Type, Image as ImageIcon, Star, Minus, LayoutGrid, Settings2, MousePointer2, Upload, ArrowUp, ArrowDown, Smile, Sparkles, Loader2, Link as LinkIcon, RefreshCw, Maximize2, Square, Circle } from 'lucide-react';
+import { AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline, Type, Image as ImageIcon, Star, Minus, LayoutGrid, Settings2, MousePointer2, Upload, ArrowUp, ArrowDown, Smile, Sparkles, Loader2, Link as LinkIcon, RefreshCw, Maximize2, Square, Circle, Trash2 } from 'lucide-react';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 import { GoogleGenAI } from "@google/genai";
 
 interface PropertiesPanelProps {
   selectedBlock: NewsletterBlock | null;
-  onUpdateBlock: (id: string, data: any) => void;
+  selectedSubBlockIndex: number | null;
+  onUpdateBlock: (id: string, data: any, topLevelProps?: Partial<NewsletterBlock>, subIndex?: number | null) => void;
   settings: NewsletterSettings;
   onUpdateSettings: (settings: Partial<NewsletterSettings>) => void;
   onOpenIconPicker: (callback: (iconName: string) => void) => void;
@@ -15,42 +16,13 @@ interface PropertiesPanelProps {
 
 const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   selectedBlock,
+  selectedSubBlockIndex,
   onUpdateBlock,
   settings,
   onUpdateSettings,
   onOpenIconPicker
 }) => {
   const [emojiPickerTarget, setEmojiPickerTarget] = React.useState<'main' | number | null>(null);
-  const [isGenerating, setIsGenerating] = React.useState(false);
-  const [prompt, setPrompt] = React.useState('');
-
-  const generateImage = async (onSuccess: (url: string) => void) => {
-    if (!prompt) return;
-    setIsGenerating(true);
-    try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-image',
-        contents: {
-          parts: [{ text: prompt }]
-        }
-      });
-
-      for (const part of response.candidates[0].content.parts) {
-        if (part.inlineData) {
-          const imageUrl = `data:image/png;base64,${part.inlineData.data}`;
-          onSuccess(imageUrl);
-          setPrompt('');
-          break;
-        }
-      }
-    } catch (error) {
-      console.error('Error generating image:', error);
-      alert('Erro ao gerar imagem. Verifique sua chave de API.');
-    } finally {
-      setIsGenerating(false);
-    }
-  };
 
   if (!selectedBlock) {
     return (
@@ -71,6 +43,8 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
               <option value="sans-serif">Padrão (Sans-serif)</option>
               <option value="Poppins">Poppins</option>
               <option value="Open Sans">Open Sans</option>
+              <option value="Montserrat">Montserrat</option>
+              <option value="Inter">Inter</option>
               <option value="Helvetica">Helvetica</option>
             </select>
           </section>
@@ -119,71 +93,238 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     );
   }
 
+  const currentBlock = (selectedSubBlockIndex !== null && (selectedBlock.type === 'column-layout' || selectedBlock.type === 'flex-row')) 
+    ? selectedBlock.data.items[selectedSubBlockIndex] 
+    : selectedBlock;
+
+  if (!currentBlock || currentBlock.type === 'empty') {
+    return (
+      <div className="w-80 bg-white border-l border-slate-200 p-6 flex flex-col items-center justify-center text-slate-400 text-center">
+        <Settings2 size={48} className="mb-4 opacity-20" />
+        <p className="text-sm font-medium">Selecione um item para editar suas propriedades</p>
+      </div>
+    );
+  }
+
   const updateData = (newData: any) => {
-    onUpdateBlock(selectedBlock.id, { ...selectedBlock.data, ...newData });
+    onUpdateBlock(selectedBlock.id, { ...currentBlock.data, ...newData });
+  };
+
+  const updateTopLevel = (props: Partial<NewsletterBlock>) => {
+    onUpdateBlock(selectedBlock.id, selectedBlock.data, props);
   };
 
   return (
     <div className="w-80 bg-white border-l border-slate-200 p-6 overflow-y-auto shadow-sm">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2 text-slate-800">
-          {selectedBlock.type === 'text' && <Type size={20} className="text-blue-600" />}
-          {selectedBlock.type === 'image' && <ImageIcon size={20} className="text-blue-600" />}
-          {selectedBlock.type === 'icon' && <Star size={20} className="text-blue-600" />}
-          {selectedBlock.type === 'divider' && <Minus size={20} className="text-blue-600" />}
-          {selectedBlock.type === 'button' && <MousePointer2 size={20} className="text-blue-600" />}
-          {selectedBlock.type === 'column-layout' && <LayoutGrid size={20} className="text-blue-600" />}
-          <h3 className="font-bold capitalize">{selectedBlock.type === 'column-layout' ? 'Colunas' : selectedBlock.type}</h3>
+          {currentBlock.type === 'text' && <Type size={20} className="text-blue-600" />}
+          {currentBlock.type === 'image' && <ImageIcon size={20} className="text-blue-600" />}
+          {currentBlock.type === 'icon' && <Star size={20} className="text-blue-600" />}
+          {currentBlock.type === 'divider' && <Minus size={20} className="text-blue-600" />}
+          {currentBlock.type === 'button' && <MousePointer2 size={20} className="text-blue-600" />}
+          {currentBlock.type === 'column-layout' && <LayoutGrid size={20} className="text-blue-600" />}
+          <h3 className="font-bold capitalize">
+            {currentBlock.type === 'column-layout' ? 'Colunas' : currentBlock.type}
+            {selectedSubBlockIndex !== null && ' (Item)'}
+          </h3>
         </div>
       </div>
 
       <div className="space-y-6">
-        {selectedBlock.type === 'text' && (
+        {/* Common Block Styling */}
+        <section className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-4">
+          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+            {currentBlock.type === 'column-layout' ? 'Estilo do Layout' : 'Estilo do Bloco'}
+          </label>
+          
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <p className="text-[10px] text-slate-500">Fundo</p>
+              <div className="flex items-center gap-2 bg-white px-2 py-1 rounded-lg border border-slate-200">
+                <input
+                  type="color"
+                  value={currentBlock.backgroundColor && currentBlock.backgroundColor !== 'transparent' ? currentBlock.backgroundColor : '#ffffff'}
+                  onChange={(e) => updateTopLevel({ backgroundColor: e.target.value })}
+                  className="w-6 h-6 rounded cursor-pointer border-none p-0 bg-transparent"
+                />
+                <button 
+                  onClick={() => updateTopLevel({ backgroundColor: 'transparent' })}
+                  className="text-[9px] text-blue-600 hover:underline"
+                >
+                  Limpar
+                </button>
+                <span className="text-[9px] font-mono text-slate-400 uppercase truncate ml-auto">{currentBlock.backgroundColor || 'Transp.'}</span>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <p className="text-[10px] text-slate-500">Borda</p>
+              <div className="flex items-center gap-2 bg-white px-2 py-1 rounded-lg border border-slate-200">
+                <input
+                  type="color"
+                  value={currentBlock.borderColor || '#e2e8f0'}
+                  onChange={(e) => updateTopLevel({ borderColor: e.target.value })}
+                  className="w-6 h-6 rounded cursor-pointer border-none p-0 bg-transparent"
+                />
+                <span className="text-[9px] font-mono text-slate-400 uppercase truncate">{currentBlock.borderColor || '#E2E8F0'}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <p className="text-[10px] text-slate-500">Espessura Borda</p>
+              <div className="flex items-center gap-2 bg-white px-2 py-1 rounded-lg border border-slate-200">
+                <input
+                  type="number"
+                  min="0"
+                  max="10"
+                  value={currentBlock.borderWidth || 0}
+                  onChange={(e) => updateTopLevel({ borderWidth: parseInt(e.target.value) || 0 })}
+                  className="w-full bg-transparent text-xs font-medium text-slate-700 outline-none"
+                />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <p className="text-[10px] text-slate-500">Arredondamento</p>
+              <div className="flex items-center gap-2 bg-white px-2 py-1 rounded-lg border border-slate-200">
+                <input
+                  type="number"
+                  min="0"
+                  max="50"
+                  value={currentBlock.borderRadius || 0}
+                  onChange={(e) => updateTopLevel({ borderRadius: parseInt(e.target.value) || 0 })}
+                  className="w-full bg-transparent text-xs font-medium text-slate-700 outline-none"
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+        {currentBlock.type === 'text' && (
           <>
             <section className="space-y-4">
               <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Conteúdo</label>
-                <textarea
-                  value={selectedBlock.data.content}
-                  onChange={(e) => updateData({ content: e.target.value })}
-                  className="w-full p-3 border border-slate-200 rounded-xl text-sm h-32 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-slate-50"
-                  placeholder="Digite seu texto aqui..."
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Alinhamento</label>
-                  <div className="flex gap-1 bg-slate-50 p-1 rounded-lg border border-slate-200">
-                    {['left', 'center', 'right'].map(a => (
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Estilo de Texto</label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Alinhamento</label>
+                    <div className="flex gap-1 bg-slate-50 p-1 rounded-lg border border-slate-200">
+                      {['left', 'center', 'right'].map(a => (
+                        <button
+                          key={a}
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            const cmd = a === 'left' ? 'justifyLeft' : a === 'center' ? 'justifyCenter' : 'justifyRight';
+                            document.execCommand(cmd, false);
+                            updateData({ textAlign: a });
+                          }}
+                          className={`flex-1 py-1.5 rounded-md transition-all ${currentBlock.data.textAlign === a ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                        >
+                          {a === 'left' ? <AlignLeft size={14} className="mx-auto" /> : a === 'center' ? <AlignCenter size={14} className="mx-auto" /> : <AlignRight size={14} className="mx-auto" />}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Formatação</label>
+                    <div className="flex gap-1 bg-slate-50 p-1 rounded-lg border border-slate-200">
                       <button
-                        key={a}
-                        onClick={() => updateData({ textAlign: a })}
-                        className={`flex-1 py-1.5 rounded-md transition-all ${selectedBlock.data.textAlign === a ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          document.execCommand('bold', false);
+                          // Force update
+                          const selection = window.getSelection();
+                          if (selection && selection.anchorNode) {
+                            let node = selection.anchorNode;
+                            while (node && !(node instanceof HTMLElement && node.hasAttribute('data-block-id'))) {
+                              node = node.parentNode as any;
+                            }
+                            if (node instanceof HTMLElement) updateData({ content: node.innerHTML });
+                          }
+                        }}
+                        className={`flex-1 py-1.5 rounded-md transition-all ${currentBlock.data.fontWeight === 'bold' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                       >
-                        {a === 'left' ? <AlignLeft size={14} className="mx-auto" /> : a === 'center' ? <AlignCenter size={14} className="mx-auto" /> : <AlignRight size={14} className="mx-auto" />}
+                        <Bold size={14} className="mx-auto" />
                       </button>
-                    ))}
+                      <button
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          document.execCommand('italic', false);
+                          // Force update
+                          const selection = window.getSelection();
+                          if (selection && selection.anchorNode) {
+                            let node = selection.anchorNode;
+                            while (node && !(node instanceof HTMLElement && node.hasAttribute('data-block-id'))) {
+                              node = node.parentNode as any;
+                            }
+                            if (node instanceof HTMLElement) updateData({ content: node.innerHTML });
+                          }
+                        }}
+                        className={`flex-1 py-1.5 rounded-md transition-all ${currentBlock.data.fontStyle === 'italic' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                      >
+                        <Italic size={14} className="mx-auto" />
+                      </button>
+                      <button
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          document.execCommand('underline', false);
+                          // Force update to save the state
+                          const selection = window.getSelection();
+                          if (selection && selection.anchorNode) {
+                            let node = selection.anchorNode;
+                            while (node && !(node instanceof HTMLElement && node.hasAttribute('data-block-id'))) {
+                              node = node.parentNode as any;
+                            }
+                            if (node instanceof HTMLElement) {
+                              const content = node.innerHTML;
+                              updateData({ content });
+                            }
+                          }
+                        }}
+                        className="flex-1 py-1.5 rounded-md text-slate-400 hover:text-slate-600 transition-all"
+                      >
+                        <Underline size={14} className="mx-auto" />
+                      </button>
+                    </div>
                   </div>
                 </div>
-                
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Estilo</label>
-                  <div className="flex gap-1 bg-slate-50 p-1 rounded-lg border border-slate-200">
-                    <button
-                      onClick={() => updateData({ fontWeight: selectedBlock.data.fontWeight === 'bold' ? 'normal' : 'bold' })}
-                      className={`flex-1 py-1.5 rounded-md transition-all ${selectedBlock.data.fontWeight === 'bold' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                    >
-                      <Bold size={14} className="mx-auto" />
-                    </button>
-                    <button
-                      onClick={() => updateData({ fontStyle: selectedBlock.data.fontStyle === 'italic' ? 'normal' : 'italic' })}
-                      className={`flex-1 py-1.5 rounded-md transition-all ${selectedBlock.data.fontStyle === 'italic' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                    >
-                      <Italic size={14} className="mx-auto" />
-                    </button>
-                  </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Adicionar Link Manual</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="https://..."
+                    className="flex-1 p-2 border border-slate-200 rounded-lg text-xs bg-slate-50 outline-none focus:ring-1 focus:ring-blue-500"
+                    id="manual-link-input"
+                  />
+                  <button
+                    onClick={() => {
+                      const input = document.getElementById('manual-link-input') as HTMLInputElement;
+                      if (input && input.value) {
+                        document.execCommand('createLink', false, input.value);
+                        // Force update
+                        const selection = window.getSelection();
+                        if (selection && selection.anchorNode) {
+                          let node = selection.anchorNode;
+                          while (node && !(node instanceof HTMLElement && node.hasAttribute('data-block-id'))) {
+                            node = node.parentNode as any;
+                          }
+                          if (node instanceof HTMLElement) {
+                            updateData({ content: node.innerHTML });
+                          }
+                        }
+                        input.value = '';
+                      }
+                    }}
+                    className="px-3 py-1 bg-blue-600 text-white text-[10px] font-bold rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Aplicar
+                  </button>
                 </div>
+                <p className="text-[9px] text-slate-400 italic">Selecione o texto no canvas antes de aplicar o link.</p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -193,7 +334,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                     <Type size={14} className="text-slate-400" />
                     <input
                       type="number"
-                      value={selectedBlock.data.fontSize || 16}
+                      value={currentBlock.data.fontSize || 16}
                       onChange={(e) => updateData({ fontSize: parseInt(e.target.value) || 16 })}
                       className="w-full bg-transparent text-sm font-medium text-slate-700 outline-none"
                     />
@@ -205,11 +346,11 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                   <div className="flex items-center gap-2 bg-slate-50 px-2 py-1.5 rounded-xl border border-slate-200">
                     <input
                       type="color"
-                      value={selectedBlock.data.color || '#334155'}
+                      value={currentBlock.data.color || '#334155'}
                       onChange={(e) => updateData({ color: e.target.value })}
                       className="w-8 h-8 rounded-lg cursor-pointer border-none p-0 bg-transparent"
                     />
-                    <span className="text-xs font-mono text-slate-500 uppercase">{selectedBlock.data.color || '#334155'}</span>
+                    <span className="text-xs font-mono text-slate-500 uppercase">{currentBlock.data.color || '#334155'}</span>
                   </div>
                 </div>
               </div>
@@ -217,32 +358,11 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
           </>
         )}
 
-        {selectedBlock.type === 'image' && (
+        {currentBlock.type === 'image' && (
           <>
             <section>
               <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Imagem</label>
               <div className="space-y-3">
-                <div className="p-4 bg-blue-50 rounded-xl border border-blue-100 space-y-3">
-                  <div className="flex items-center gap-2 text-blue-700 mb-1">
-                    <Sparkles size={16} />
-                    <span className="text-xs font-bold uppercase tracking-wider">Gerar com IA</span>
-                  </div>
-                  <textarea
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                    className="w-full p-2.5 bg-white border border-blue-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none min-h-[60px]"
-                    placeholder="Descreva a imagem que deseja gerar..."
-                  />
-                  <button
-                    onClick={() => generateImage((url) => updateData({ url }))}
-                    disabled={isGenerating || !prompt}
-                    className="w-full py-2 bg-blue-600 text-white rounded-lg font-bold text-xs hover:bg-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isGenerating ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
-                    {isGenerating ? 'Gerando...' : 'Gerar Imagem'}
-                  </button>
-                </div>
-
                 <button 
                   onClick={() => {
                     const input = document.createElement('input');
@@ -269,7 +389,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                   <p className="text-[10px] text-slate-500 mb-1">Ou insira o link</p>
                   <input
                     type="text"
-                    value={selectedBlock.data.url}
+                    value={currentBlock.data.url}
                     onChange={(e) => updateData({ url: e.target.value })}
                     className="w-full p-2 border border-slate-200 rounded-lg text-sm bg-slate-50"
                     placeholder="https://exemplo.com/imagem.jpg"
@@ -281,7 +401,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                     <LinkIcon size={14} className="text-slate-400" />
                     <input
                       type="text"
-                      value={selectedBlock.data.linkUrl || ''}
+                      value={currentBlock.data.linkUrl || ''}
                       onChange={(e) => updateData({ linkUrl: e.target.value })}
                       className="w-full bg-transparent text-sm outline-none"
                       placeholder="https://exemplo.com"
@@ -296,27 +416,42 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                 <div>
                   <div className="flex justify-between mb-1">
                     <p className="text-[10px] text-slate-500">Largura (%)</p>
-                    <span className="text-[10px] font-bold">{selectedBlock.data.width}%</span>
+                    <span className="text-[10px] font-bold">{currentBlock.data.width}%</span>
                   </div>
                   <input
                     type="range"
                     min="10"
                     max="100"
-                    value={selectedBlock.data.width}
+                    value={currentBlock.data.width}
                     onChange={(e) => updateData({ width: parseInt(e.target.value) })}
                     className="w-full"
                   />
                 </div>
                 <div>
                   <div className="flex justify-between mb-1">
+                    <p className="text-[10px] text-slate-500">Altura (px - 0 para auto)</p>
+                    <span className="text-[10px] font-bold">{currentBlock.data.height || 'Auto'}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="800"
+                    step="10"
+                    value={currentBlock.data.height || 0}
+                    onChange={(e) => updateData({ height: parseInt(e.target.value) || undefined })}
+                    className="w-full"
+                  />
+                </div>
+                <div>
+                  <div className="flex justify-between mb-1">
                     <p className="text-[10px] text-slate-500">Arredondamento (px)</p>
-                    <span className="text-[10px] font-bold">{selectedBlock.data.borderRadius}px</span>
+                    <span className="text-[10px] font-bold">{currentBlock.data.borderRadius}px</span>
                   </div>
                   <input
                     type="range"
                     min="0"
                     max="100"
-                    value={selectedBlock.data.borderRadius}
+                    value={currentBlock.data.borderRadius}
                     onChange={(e) => updateData({ borderRadius: parseInt(e.target.value) })}
                     className="w-full"
                   />
@@ -326,7 +461,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
           </>
         )}
 
-        {selectedBlock.type === 'icon' && (
+        {currentBlock.type === 'icon' && (
           <>
             <section className="space-y-4">
               <div className="space-y-2">
@@ -336,15 +471,15 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                     <div 
                       className="w-12 h-12 flex items-center justify-center rounded-xl bg-white border border-slate-200 shadow-sm"
                       style={{ 
-                        color: selectedBlock.data.color || '#3b82f6',
+                        color: currentBlock.data.color || '#3b82f6',
                       }}
                     >
                       <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>
-                        {selectedBlock.data.iconName || 'star'}
+                        {currentBlock.data.iconName || 'star'}
                       </span>
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-slate-700 capitalize">{selectedBlock.data.iconName || 'star'}</p>
+                      <p className="text-xs font-bold text-slate-700 capitalize">{currentBlock.data.iconName || 'star'}</p>
                       <p className="text-[10px] text-slate-400 uppercase tracking-wider">Material Symbol</p>
                     </div>
                   </div>
@@ -366,7 +501,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                         key={s}
                         onClick={() => updateData({ size: s })}
                         className={`flex-1 py-2 text-xs font-bold rounded-xl border transition-all ${
-                          (selectedBlock.data.size || 'medium') === s ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'
+                          (currentBlock.data.size || 'medium') === s ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'
                         }`}
                       >
                         {s === 'small' ? 'P' : s === 'medium' ? 'M' : 'G'}
@@ -380,11 +515,11 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                   <div className="flex items-center gap-2 bg-slate-50 px-2 py-1.5 rounded-xl border border-slate-200">
                     <input
                       type="color"
-                      value={selectedBlock.data.color || '#3b82f6'}
+                      value={currentBlock.data.color || '#3b82f6'}
                       onChange={(e) => updateData({ color: e.target.value })}
                       className="w-8 h-8 rounded-lg cursor-pointer border-none p-0 bg-transparent"
                     />
-                    <span className="text-xs font-mono text-slate-500 uppercase">{selectedBlock.data.color || '#3b82f6'}</span>
+                    <span className="text-xs font-mono text-slate-500 uppercase">{currentBlock.data.color || '#3b82f6'}</span>
                   </div>
                 </div>
               </div>
@@ -458,7 +593,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
           </section>
         )}
 
-        {selectedBlock.type === 'divider' && (
+        {currentBlock.type === 'divider' && (
           <section className="space-y-6">
             <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Configurações do Divisor</label>
             <div className="space-y-4">
@@ -467,11 +602,11 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                 <div className="flex items-center gap-2 bg-slate-50 px-2 py-1.5 rounded-xl border border-slate-200">
                   <input
                     type="color"
-                    value={selectedBlock.data.color || '#e2e8f0'}
+                    value={currentBlock.data.color || '#e2e8f0'}
                     onChange={(e) => updateData({ color: e.target.value })}
                     className="w-8 h-8 rounded-lg cursor-pointer border-none p-0 bg-transparent"
                   />
-                  <span className="text-xs font-mono text-slate-500 uppercase">{selectedBlock.data.color || '#e2e8f0'}</span>
+                  <span className="text-xs font-mono text-slate-500 uppercase">{currentBlock.data.color || '#e2e8f0'}</span>
                 </div>
               </div>
 
@@ -482,7 +617,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                     <Maximize2 size={14} className="text-slate-400" />
                     <input
                       type="number"
-                      value={selectedBlock.data.height || 1}
+                      value={currentBlock.data.height || 1}
                       onChange={(e) => updateData({ height: parseInt(e.target.value) || 1 })}
                       className="w-full bg-transparent text-sm font-medium text-slate-700 outline-none"
                     />
@@ -495,7 +630,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                     <Maximize2 size={14} className="text-slate-400" />
                     <input
                       type="number"
-                      value={selectedBlock.data.margin || 16}
+                      value={currentBlock.data.margin || 16}
                       onChange={(e) => updateData({ margin: parseInt(e.target.value) || 0 })}
                       className="w-full bg-transparent text-sm font-medium text-slate-700 outline-none"
                     />
@@ -506,7 +641,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
           </section>
         )}
 
-        {selectedBlock.type === 'button' && (
+        {currentBlock.type === 'button' && (
           <>
             <section>
               <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Estilo do Botão</label>
@@ -516,7 +651,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                     key={v}
                     onClick={() => updateData({ variant: v })}
                     className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all capitalize ${
-                      (selectedBlock.data.variant || 'button') === v ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'
+                      (currentBlock.data.variant || 'button') === v ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'
                     }`}
                   >
                     {v === 'button' ? 'Botão' : 'Link'}
@@ -525,10 +660,64 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
               </div>
             </section>
             <section>
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Ícone do Botão</label>
+              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-white border border-slate-200 shadow-sm text-blue-600">
+                    {currentBlock.data.iconName ? (
+                      <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>
+                        {currentBlock.data.iconName}
+                      </span>
+                    ) : (
+                      <MousePointer2 size={20} className="text-slate-300" />
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-700 capitalize">{currentBlock.data.iconName || 'Sem ícone'}</p>
+                    {currentBlock.data.iconName && <p className="text-[10px] text-slate-400 uppercase tracking-wider">Material Symbol</p>}
+                  </div>
+                </div>
+                <div className="flex gap-1">
+                  {currentBlock.data.iconName && (
+                    <button
+                      onClick={() => updateData({ iconName: undefined })}
+                      className="p-2 bg-white hover:bg-red-50 text-red-500 rounded-lg border border-slate-200 transition-all shadow-sm"
+                      title="Remover ícone"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => onOpenIconPicker((iconName) => updateData({ iconName }))}
+                    className="p-2 bg-white hover:bg-slate-50 text-blue-600 rounded-lg border border-slate-200 transition-all shadow-sm"
+                    title="Escolher ícone"
+                  >
+                    <RefreshCw size={16} />
+                  </button>
+                </div>
+              </div>
+              {currentBlock.data.iconName && (
+                <div className="mt-4">
+                  <div className="flex justify-between mb-1">
+                    <p className="text-[10px] text-slate-500">Espaçamento do Ícone (px)</p>
+                    <span className="text-[10px] font-bold">{currentBlock.data.iconGap || 8}px</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="40"
+                    value={currentBlock.data.iconGap || 8}
+                    onChange={(e) => updateData({ iconGap: parseInt(e.target.value) })}
+                    className="w-full"
+                  />
+                </div>
+              )}
+            </section>
+            <section>
               <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Texto do Botão</label>
               <input
                 type="text"
-                value={selectedBlock.data.text}
+                value={currentBlock.data.text}
                 onChange={(e) => updateData({ text: e.target.value })}
                 className="w-full p-2 border border-slate-200 rounded-lg text-sm bg-slate-50"
               />
@@ -537,7 +726,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
               <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Link (URL)</label>
               <input
                 type="text"
-                value={selectedBlock.data.url}
+                value={currentBlock.data.url}
                 onChange={(e) => updateData({ url: e.target.value })}
                 className="w-full p-2 border border-slate-200 rounded-lg text-sm bg-slate-50"
                 placeholder="https://exemplo.com"
@@ -551,11 +740,11 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                   <div className="flex items-center gap-2 bg-slate-50 px-2 py-1.5 rounded-xl border border-slate-200">
                     <input
                       type="color"
-                      value={selectedBlock.data.backgroundColor || '#3b82f6'}
+                      value={currentBlock.data.backgroundColor || '#3b82f6'}
                       onChange={(e) => updateData({ backgroundColor: e.target.value })}
                       className="w-8 h-8 rounded-lg cursor-pointer border-none p-0 bg-transparent"
                     />
-                    <span className="text-xs font-mono text-slate-500 uppercase">{selectedBlock.data.backgroundColor || '#3b82f6'}</span>
+                    <span className="text-xs font-mono text-slate-500 uppercase">{currentBlock.data.backgroundColor || '#3b82f6'}</span>
                   </div>
                 </div>
                 
@@ -564,11 +753,11 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                   <div className="flex items-center gap-2 bg-slate-50 px-2 py-1.5 rounded-xl border border-slate-200">
                     <input
                       type="color"
-                      value={selectedBlock.data.color || '#ffffff'}
+                      value={currentBlock.data.color || '#ffffff'}
                       onChange={(e) => updateData({ color: e.target.value })}
                       className="w-8 h-8 rounded-lg cursor-pointer border-none p-0 bg-transparent"
                     />
-                    <span className="text-xs font-mono text-slate-500 uppercase">{selectedBlock.data.color || '#ffffff'}</span>
+                    <span className="text-xs font-mono text-slate-500 uppercase">{currentBlock.data.color || '#ffffff'}</span>
                   </div>
                 </div>
               </div>
@@ -580,7 +769,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                     <Maximize2 size={14} className="text-slate-400" />
                     <input
                       type="number"
-                      value={selectedBlock.data.borderRadius}
+                      value={currentBlock.data.borderRadius}
                       onChange={(e) => updateData({ borderRadius: parseInt(e.target.value) })}
                       className="w-full bg-transparent text-sm font-medium text-slate-700 outline-none"
                     />
@@ -592,7 +781,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                     <Type size={14} className="text-slate-400" />
                     <input
                       type="number"
-                      value={selectedBlock.data.fontSize}
+                      value={currentBlock.data.fontSize}
                       onChange={(e) => updateData({ fontSize: parseInt(e.target.value) })}
                       className="w-full bg-transparent text-sm font-medium text-slate-700 outline-none"
                     />
@@ -607,7 +796,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                     <Maximize2 size={14} className="text-slate-400" />
                     <input
                       type="number"
-                      value={selectedBlock.data.paddingX}
+                      value={currentBlock.data.paddingX}
                       onChange={(e) => updateData({ paddingX: parseInt(e.target.value) })}
                       className="w-full bg-transparent text-sm font-medium text-slate-700 outline-none"
                     />
@@ -619,7 +808,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                     <Maximize2 size={14} className="text-slate-400" />
                     <input
                       type="number"
-                      value={selectedBlock.data.paddingY}
+                      value={currentBlock.data.paddingY}
                       onChange={(e) => updateData({ paddingY: parseInt(e.target.value) })}
                       className="w-full bg-transparent text-sm font-medium text-slate-700 outline-none"
                     />
@@ -631,7 +820,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                 <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Largura Total (100%)</span>
                 <input
                   type="checkbox"
-                  checked={selectedBlock.data.fullWidth}
+                  checked={currentBlock.data.fullWidth}
                   onChange={(e) => updateData({ fullWidth: e.target.checked })}
                   className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500"
                 />
@@ -644,7 +833,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                     <button
                       key={a}
                       onClick={() => updateData({ textAlign: a })}
-                      className={`flex-1 py-1.5 rounded-md transition-all flex items-center justify-center ${selectedBlock.data.textAlign === a ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                      className={`flex-1 py-1.5 rounded-md transition-all flex items-center justify-center ${currentBlock.data.textAlign === a ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                     >
                       {a === 'left' ? <AlignLeft size={14} /> : a === 'center' ? <AlignCenter size={14} /> : <AlignRight size={14} />}
                     </button>
@@ -771,31 +960,6 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
 
                     {item.type === 'image' && (
                       <div className="space-y-4">
-                        <div className="p-3 bg-blue-50 rounded-xl border border-blue-100 space-y-2">
-                          <div className="flex items-center gap-2 text-blue-700">
-                            <Sparkles size={14} />
-                            <span className="text-[10px] font-bold uppercase tracking-wider">IA</span>
-                          </div>
-                          <textarea
-                            value={prompt}
-                            onChange={(e) => setPrompt(e.target.value)}
-                            className="w-full p-2 bg-white border border-blue-200 rounded-lg text-[10px] focus:ring-2 focus:ring-blue-500 outline-none"
-                            placeholder="Descreva a imagem..."
-                          />
-                          <button
-                            onClick={() => generateImage((url) => {
-                              const newItems = [...selectedBlock.data.items];
-                              newItems[i].data = { ...newItems[i].data, url };
-                              updateData({ items: newItems });
-                            })}
-                            disabled={isGenerating || !prompt}
-                            className="w-full py-1.5 bg-blue-600 text-white rounded-lg font-bold text-[10px] hover:bg-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                          >
-                            {isGenerating ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
-                            Gerar
-                          </button>
-                        </div>
-
                         <div className="space-y-2">
                           <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">URL da Imagem</label>
                           <div className="flex gap-2">
@@ -873,6 +1037,28 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
 
                           <div className="space-y-2">
                             <div className="flex justify-between">
+                              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Altura</label>
+                              <span className="text-[10px] font-bold text-blue-600">{item.data.height || 'Auto'}</span>
+                            </div>
+                            <input
+                              type="range"
+                              min="0"
+                              max="500"
+                              step="10"
+                              value={item.data.height || 0}
+                              onChange={(e) => {
+                                const newItems = [...selectedBlock.data.items];
+                                newItems[i].data = { ...newItems[i].data, height: parseInt(e.target.value) || undefined };
+                                updateData({ items: newItems });
+                              }}
+                              className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <div className="flex justify-between">
                               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Borda</label>
                               <span className="text-[10px] font-bold text-blue-600">{item.data.borderRadius || 0}px</span>
                             </div>
@@ -914,6 +1100,68 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                               </button>
                             ))}
                           </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ícone do Botão</label>
+                          <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 flex items-center justify-center rounded-lg bg-white border border-slate-200 shadow-sm text-blue-600">
+                                {item.data.iconName ? (
+                                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>
+                                    {item.data.iconName}
+                                  </span>
+                                ) : (
+                                  <MousePointer2 size={16} className="text-slate-300" />
+                                )}
+                              </div>
+                              <p className="text-[10px] font-bold text-slate-700 capitalize">{item.data.iconName || 'Sem ícone'}</p>
+                            </div>
+                            <div className="flex gap-1">
+                              {item.data.iconName && (
+                                <button
+                                  onClick={() => {
+                                    const newItems = [...selectedBlock.data.items];
+                                    newItems[i].data = { ...newItems[i].data, iconName: undefined };
+                                    updateData({ items: newItems });
+                                  }}
+                                  className="p-1.5 bg-white hover:bg-red-50 text-red-500 rounded-lg border border-slate-200 transition-all shadow-sm"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              )}
+                              <button
+                                onClick={() => onOpenIconPicker((iconName) => {
+                                  const newItems = [...selectedBlock.data.items];
+                                  newItems[i].data = { ...newItems[i].data, iconName };
+                                  updateData({ items: newItems });
+                                })}
+                                className="p-1.5 bg-white hover:bg-slate-50 text-blue-600 rounded-lg border border-slate-200 transition-all shadow-sm"
+                              >
+                                <RefreshCw size={12} />
+                              </button>
+                            </div>
+                          </div>
+                          {item.data.iconName && (
+                            <div className="mt-2">
+                              <div className="flex justify-between mb-1">
+                                <p className="text-[10px] text-slate-500">Espaçamento</p>
+                                <span className="text-[10px] font-bold">{item.data.iconGap || 6}px</span>
+                              </div>
+                              <input
+                                type="range"
+                                min="0"
+                                max="20"
+                                value={item.data.iconGap || 6}
+                                onChange={(e) => {
+                                  const newItems = [...selectedBlock.data.items];
+                                  newItems[i].data = { ...newItems[i].data, iconGap: parseInt(e.target.value) };
+                                  updateData({ items: newItems });
+                                }}
+                                className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                              />
+                            </div>
+                          )}
                         </div>
 
                         <div className="space-y-2">
@@ -1272,9 +1520,63 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
           </>
         )}
 
+        {currentBlock.type === 'flex-row' && (
+          <section className="space-y-4">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Configurações da Linha</label>
+            <div className="space-y-3">
+              <div>
+                <div className="flex justify-between mb-1">
+                  <p className="text-[10px] text-slate-500">Espaçamento entre itens (px)</p>
+                  <span className="text-[10px] font-bold">{currentBlock.data.gap || 10}px</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="50"
+                  value={currentBlock.data.gap || 10}
+                  onChange={(e) => updateData({ gap: parseInt(e.target.value) })}
+                  className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                />
+              </div>
+              
+              <div>
+                <p className="text-[10px] text-slate-500 mb-2">Alinhamento Horizontal</p>
+                <div className="flex gap-1 bg-slate-50 p-1 rounded-lg border border-slate-200">
+                  {['left', 'center', 'right'].map(a => (
+                    <button
+                      key={a}
+                      onClick={() => updateData({ textAlign: a })}
+                      className={`flex-1 py-1.5 rounded-md transition-all ${currentBlock.data.textAlign === a ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                    >
+                      {a === 'left' ? <AlignLeft size={14} className="mx-auto" /> : a === 'center' ? <AlignCenter size={14} className="mx-auto" /> : <AlignRight size={14} className="mx-auto" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-[10px] text-slate-500 mb-2">Alinhamento Vertical</p>
+                <div className="flex gap-1 bg-slate-50 p-1 rounded-lg border border-slate-200">
+                  {['start', 'center', 'end'].map(a => (
+                    <button
+                      key={a}
+                      onClick={() => updateData({ alignItems: a })}
+                      className={`flex-1 py-1.5 rounded-md transition-all ${currentBlock.data.alignItems === a ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                    >
+                      <span className="text-[10px] font-bold uppercase">{a}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
         {/* Common Padding Controls */}
         <section className="pt-6 border-t border-slate-100">
-          <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Espaçamento do Bloco</label>
+          <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">
+            {currentBlock.type === 'column-layout' ? 'Espaçamento do Layout' : 'Espaçamento do Bloco'}
+          </label>
           <div className="space-y-4">
             <div>
               <div className="flex justify-between mb-1">

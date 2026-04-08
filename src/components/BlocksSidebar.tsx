@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Type, Image as ImageIcon, Minus, Star, LayoutGrid, Columns2, Columns3, MousePointer2, Smile, Bookmark, Search, Trash2, Edit2, Clock } from 'lucide-react';
-import { BlockType, Preset } from '../types';
+import { Type, Image as ImageIcon, Minus, Star, LayoutGrid, Columns2, Columns3, MousePointer2, Smile, Bookmark, Search, Trash2, Edit2, Clock, Sparkles, Loader2, Send } from 'lucide-react';
+import { BlockType, Preset, NewsletterBlock } from '../types';
+import { GoogleGenAI } from "@google/genai";
 
 interface BlocksSidebarProps {
   activeTab: 'blocks' | 'layouts' | 'models';
@@ -9,6 +10,7 @@ interface BlocksSidebarProps {
   onLoadPreset: (preset: Preset) => void;
   onDeletePreset: (id: string) => void;
   onRenamePreset: (id: string) => void;
+  onAddAIGeneratedBlocks: (blocks: NewsletterBlock[]) => void;
 }
 
 const NewsletterPreview: React.FC<{ blocks: any[], settings: any }> = ({ blocks, settings }) => {
@@ -42,9 +44,60 @@ const BlocksSidebar: React.FC<BlocksSidebarProps> = ({
   presets, 
   onLoadPreset, 
   onDeletePreset, 
-  onRenamePreset
+  onRenamePreset,
+  onAddAIGeneratedBlocks
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [showAiInput, setShowAiInput] = useState(false);
+
+  const generateWithAI = async () => {
+    if (!aiPrompt.trim()) return;
+    setIsGenerating(true);
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+      
+      const systemPrompt = `Você é um designer de newsletters especialista. 
+      Gere uma estrutura de newsletter em formato JSON baseada na descrição do usuário.
+      O JSON deve ser um array de objetos seguindo esta interface:
+      interface NewsletterBlock {
+        id: string; // use Math.random().toString(36).substr(2, 9)
+        type: 'text' | 'image' | 'icon' | 'divider' | 'column-layout' | 'button' | 'emoji';
+        data: any; // dados específicos do tipo
+      }
+      
+      Exemplo de dados:
+      - text: { content: string, fontSize: number, color: string, textAlign: 'left'|'center'|'right' }
+      - image: { url: string, alt: string, borderRadius: number, width: number }
+      - button: { text: string, url: string, backgroundColor: string, color: string, borderRadius: number }
+      - column-layout: { columns: 2|3, items: [{ type, data }] }
+      
+      Retorne APENAS o array JSON, sem markdown ou explicações.`;
+
+      const result = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: [systemPrompt, aiPrompt]
+      });
+      
+      const text = result.text || '';
+      
+      // Clean up potential markdown
+      const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
+      const generatedBlocks = JSON.parse(jsonStr);
+      
+      if (Array.isArray(generatedBlocks)) {
+        onAddAIGeneratedBlocks(generatedBlocks);
+        setAiPrompt('');
+        setShowAiInput(false);
+      }
+    } catch (error) {
+      console.error('Error generating with AI:', error);
+      alert('Erro ao gerar com IA. Tente novamente.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   const handleDragStart = (e: React.DragEvent, type: BlockType | string, data?: any) => {
     e.dataTransfer.setData('blockType', type);
@@ -65,6 +118,7 @@ const BlocksSidebar: React.FC<BlocksSidebarProps> = ({
   const layouts = [
     { type: 'column-layout', data: { columns: 2 }, icon: Columns2, label: '2 Colunas' },
     { type: 'column-layout', data: { columns: 3 }, icon: Columns3, label: '3 Colunas' },
+    { type: 'flex-row', data: { items: [], gap: 10, alignItems: 'center' }, icon: LayoutGrid, label: 'Linha Flexível' },
   ];
 
   const filteredPresets = presets.filter(p => 
@@ -137,6 +191,43 @@ const BlocksSidebar: React.FC<BlocksSidebarProps> = ({
 
         {activeTab === 'models' && (
           <div className="space-y-4">
+            <button
+              onClick={() => setShowAiInput(!showAiInput)}
+              className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-bold text-xs shadow-lg shadow-blue-200 hover:shadow-blue-300 hover:-translate-y-0.5 transition-all mb-6"
+            >
+              <Sparkles size={16} />
+              Criar com IA
+            </button>
+
+            {showAiInput && (
+              <div className="p-4 bg-blue-50 rounded-xl border border-blue-100 mb-6 space-y-3 animate-in fade-in slide-in-from-top-2">
+                <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Descreva sua newsletter</p>
+                <textarea
+                  value={aiPrompt}
+                  onChange={(e) => setAiPrompt(e.target.value)}
+                  placeholder="Ex: Uma newsletter minimalista para uma agência de viagens com tons de azul e fotos de praias..."
+                  className="w-full p-3 bg-white border border-blue-200 rounded-lg text-xs h-24 focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                />
+                <button
+                  onClick={generateWithAI}
+                  disabled={isGenerating || !aiPrompt.trim()}
+                  className="w-full py-2 bg-blue-600 text-white rounded-lg font-bold text-xs flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isGenerating ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      Gerando...
+                    </>
+                  ) : (
+                    <>
+                      <Send size={14} />
+                      Gerar Modelo
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+
             <div className="relative mb-6">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input

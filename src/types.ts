@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export type BlockType = 'text' | 'image' | 'icon' | 'divider' | 'column-layout' | 'button' | 'emoji';
+export type BlockType = 'text' | 'image' | 'icon' | 'divider' | 'column-layout' | 'button' | 'emoji' | 'flex-row';
 
 export interface TextBlockData {
   content: string;
@@ -19,6 +19,7 @@ export interface ImageBlockData {
   alt: string;
   borderRadius: number;
   width: number;
+  height?: number;
   linkUrl?: string;
 }
 
@@ -48,6 +49,8 @@ export interface ButtonBlockData {
   fullWidth: boolean;
   textAlign: 'left' | 'center' | 'right';
   variant?: 'button' | 'link';
+  iconName?: string;
+  iconGap?: number;
 }
 
 export interface EmojiBlockData {
@@ -59,6 +62,10 @@ export interface EmojiBlockData {
 export interface ColumnItem {
   type: 'text' | 'image' | 'icon' | 'button' | 'emoji' | 'empty';
   data: any;
+  backgroundColor?: string;
+  borderColor?: string;
+  borderWidth?: number;
+  borderRadius?: number;
 }
 
 export interface ColumnLayoutBlockData {
@@ -67,16 +74,26 @@ export interface ColumnLayoutBlockData {
   borderRadius: number;
 }
 
+export interface FlexRowBlockData {
+  items: ColumnItem[];
+  gap: number;
+  alignItems: 'start' | 'center' | 'end';
+}
+
 export interface NewsletterBlock {
   id: string;
   type: BlockType;
   data: any; // Discriminated by type
+  backgroundColor?: string;
+  borderColor?: string;
+  borderWidth?: number;
+  borderRadius?: number;
 }
 
 export interface NewsletterSettings {
   backgroundColor: string;
   contentBackgroundColor: string;
-  fontFamily: 'Poppins' | 'Helvetica' | 'Open Sans' | 'sans-serif';
+  fontFamily: 'Poppins' | 'Helvetica' | 'Open Sans' | 'Montserrat' | 'Inter' | 'sans-serif';
 }
 
 export interface Preset {
