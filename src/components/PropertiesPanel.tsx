@@ -1541,7 +1541,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                       <div className="mt-4 pt-4 border-t border-slate-100 space-y-2">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Alinhamento Vertical</label>
                         <div className="flex bg-slate-100 p-1 rounded-xl">
-                          {(['top', 'bottom'] as const).map((align) => (
+                          {(['top', 'center', 'bottom'] as const).map((align) => (
                             <button
                               key={align}
                               onClick={() => {
@@ -1554,6 +1554,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                               }`}
                             >
                               {align === 'top' && <ArrowUp size={18} />}
+                              {align === 'center' && <div className="w-4 h-1 bg-current rounded-full my-auto" />}
                               {align === 'bottom' && <ArrowDown size={18} />}
                             </button>
                           ))}
@@ -1670,7 +1671,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
             <div>
               <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Alinhamento Vertical do Conteúdo</label>
               <div className="flex bg-slate-100 p-1 rounded-xl">
-                {(['top', 'bottom'] as const).map((align) => (
+                {(['top', 'center', 'bottom'] as const).map((align) => (
                   <button
                     key={align}
                     onClick={() => updateData({ verticalAlign: align })}
@@ -1679,6 +1680,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                     }`}
                   >
                     {align === 'top' && <ArrowUp size={18} />}
+                    {align === 'center' && <div className="w-4 h-1 bg-current rounded-full my-auto" />}
                     {align === 'bottom' && <ArrowDown size={18} />}
                   </button>
                 ))}

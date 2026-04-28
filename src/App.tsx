@@ -16,7 +16,7 @@ import ConfirmModal from './components/ConfirmModal';
 import HowToUseModal from './components/HowToUseModal';
 import { exportToHtml } from './exportHtml';
 import { db, auth, handleFirestoreError, OperationType } from './firebase';
-import { collection, onSnapshot, query, orderBy, setDoc, doc, deleteDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, setDoc, doc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 
 export default function App() {
   const [blocks, setBlocks] = useState<NewsletterBlock[]>([]);
@@ -60,12 +60,21 @@ export default function App() {
   const savePreset = async (name: string) => {
     setIsSaving(true);
     const id = Math.random().toString(36).substr(2, 9);
-    const newPreset: Preset = {
+    
+    // Check for size limits (Firestore 1MB limit)
+    const payloadSize = encodeURI(JSON.stringify(blocks) + JSON.stringify(settings)).length;
+    if (payloadSize > 800000) { // Safety margin at 800KB
+      toast.error('O layout é muito grande para salvar. Tente usar links de imagens em vez de uploads diretos.');
+      setIsSaving(false);
+      return;
+    }
+
+    const newPreset = {
       id,
       name,
       blocks: JSON.parse(JSON.stringify(blocks)),
       settings: { ...settings },
-      createdAt: Date.now(),
+      createdAt: serverTimestamp(),
       uid: auth.currentUser?.uid || 'anonymous'
     };
 
@@ -78,7 +87,7 @@ export default function App() {
       });
     } catch (error) {
       console.error('Error saving preset:', error);
-      toast.error('Erro ao salvar layout. Tente novamente.');
+      toast.error('Erro ao salvar layout. Verifique sua conexão ou se o arquivo é muito grande.');
     } finally {
       setIsSaving(false);
     }
@@ -138,7 +147,11 @@ export default function App() {
     if (activePreset) {
       setIsSaving(true);
       try {
-        await setDoc(doc(db, 'presets', activePreset.id), { ...activePreset, name: newName });
+        await setDoc(doc(db, 'presets', activePreset.id), { 
+          ...activePreset, 
+          name: newName,
+          updatedAt: serverTimestamp()
+        });
         setIsRenameModalOpen(false);
         toast.success('Layout renomeado.');
         setActivePreset(null);

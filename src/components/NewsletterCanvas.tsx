@@ -495,7 +495,10 @@ const NewsletterCanvas: React.FC<NewsletterCanvasProps> = ({
 
             {/* Block Content */}
             <div 
-              className={`w-full flex flex-col ${block.data.verticalAlign === 'bottom' ? 'justify-end' : 'justify-start'}`}
+              className={`w-full flex flex-col ${
+                block.data.verticalAlign === 'bottom' ? 'justify-end' : 
+                block.data.verticalAlign === 'center' ? 'justify-center' : 'justify-start'
+              }`}
               style={{ 
                 paddingTop: `${block.data.paddingTop ?? 0}px`, 
                 paddingBottom: `${block.data.paddingBottom ?? 0}px`,
@@ -517,7 +520,8 @@ const NewsletterCanvas: React.FC<NewsletterCanvasProps> = ({
                           onDragLeave={() => setDragOverSlot(null)}
                           onDrop={(e) => handleSlotDrop(e, block.id, i)}
                           className={`min-h-[40px] rounded-lg overflow-hidden flex flex-col ${
-                            item.data?.verticalAlign === 'bottom' ? 'justify-end' : 'justify-start'
+                            item.data?.verticalAlign === 'bottom' ? 'justify-end' : 
+                            item.data?.verticalAlign === 'center' ? 'justify-center' : 'justify-start'
                           } items-center border-2 transition-all ${
                             isSubSelected ? 'border-blue-500 ring-2 ring-blue-200' : 'border-transparent'
                           } ${

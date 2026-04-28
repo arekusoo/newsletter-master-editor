@@ -24,7 +24,7 @@ export const exportToHtml = (blocks: NewsletterBlock[], settings: NewsletterSett
         const d = block.data;
         return `
           <tr>
-            <td align="${d.textAlign}" valign="${d.verticalAlign || 'top'}" style="padding: ${d.paddingTop ?? 0}px 20px ${d.paddingBottom ?? 0}px 20px; font-family: ${fontStack}; font-size: ${d.fontSize}px; color: ${d.color}; font-weight: ${d.fontWeight}; font-style: ${d.fontStyle}; line-height: 1.5; ${getBlockStyle(block)}">
+            <td align="${d.textAlign}" valign="${d.verticalAlign === 'center' ? 'middle' : (d.verticalAlign || 'top')}" style="padding: ${d.paddingTop ?? 0}px 20px ${d.paddingBottom ?? 0}px 20px; font-family: ${fontStack}; font-size: ${d.fontSize}px; color: ${d.color}; font-weight: ${d.fontWeight}; font-style: ${d.fontStyle}; line-height: 1.5; ${getBlockStyle(block)}">
               ${d.content}
             </td>
           </tr>
@@ -36,7 +36,7 @@ export const exportToHtml = (blocks: NewsletterBlock[], settings: NewsletterSett
         const imgHtml = `<img src="${d.url}" alt="${d.alt}" width="${d.width}%" style="display: block; width: ${d.width}%; max-width: 100%; border-radius: ${d.borderRadius}px; ${heightStyle}" />`;
         return `
           <tr>
-            <td align="center" valign="${d.verticalAlign || 'top'}" style="padding: ${d.paddingTop ?? 0}px 20px ${d.paddingBottom ?? 0}px 20px; ${getBlockStyle(block)}">
+            <td align="center" valign="${d.verticalAlign === 'center' ? 'middle' : (d.verticalAlign || 'top')}" style="padding: ${d.paddingTop ?? 0}px 20px ${d.paddingBottom ?? 0}px 20px; ${getBlockStyle(block)}">
               ${d.linkUrl ? `<a href="${d.linkUrl}" target="_blank" style="text-decoration: none;">${imgHtml}</a>` : imgHtml}
             </td>
           </tr>
@@ -59,7 +59,7 @@ export const exportToHtml = (blocks: NewsletterBlock[], settings: NewsletterSett
         const padding = d.isCircular ? size / 2 : 0;
         return `
           <tr>
-            <td align="center" valign="${d.verticalAlign || 'top'}" style="padding: ${d.paddingTop ?? 0}px 20px ${d.paddingBottom ?? 0}px 20px; ${getBlockStyle(block)}">
+            <td align="center" valign="${d.verticalAlign === 'center' ? 'middle' : (d.verticalAlign || 'top')}" style="padding: ${d.paddingTop ?? 0}px 20px ${d.paddingBottom ?? 0}px 20px; ${getBlockStyle(block)}">
               <div style="display: inline-block; background-color: ${d.backgroundColor}; border-radius: ${d.isCircular ? '50%' : '8px'}; padding: ${d.isCircular ? padding / 2 : 12}px; width: ${size}px; height: ${size}px; line-height: ${size}px; text-align: center;">
                 <span class="material-symbols-outlined" style="color: ${d.color}; font-size: ${size}px; line-height: ${size}px; display: block;">${d.iconName || 'star'}</span>
               </div>
@@ -80,7 +80,7 @@ export const exportToHtml = (blocks: NewsletterBlock[], settings: NewsletterSett
 
         return `
           <tr>
-            <td align="${d.textAlign}" valign="${d.verticalAlign || 'top'}" style="padding: ${d.paddingTop ?? 0}px 20px ${d.paddingBottom ?? 0}px 20px; ${getBlockStyle(block)}">
+            <td align="${d.textAlign}" valign="${d.verticalAlign === 'center' ? 'middle' : (d.verticalAlign || 'top')}" style="padding: ${d.paddingTop ?? 0}px 20px ${d.paddingBottom ?? 0}px 20px; ${getBlockStyle(block)}">
               <table border="0" cellspacing="0" cellpadding="0" width="${d.fullWidth ? '100%' : 'auto'}">
                 <tr>
                   <td align="center" bgcolor="${bgColor}" style="border-radius: ${d.borderRadius}px;">
@@ -98,7 +98,7 @@ export const exportToHtml = (blocks: NewsletterBlock[], settings: NewsletterSett
         const d = block.data;
         return `
           <tr>
-            <td align="${d.textAlign}" valign="${d.verticalAlign || 'top'}" style="padding: ${d.paddingTop ?? 0}px 20px ${d.paddingBottom ?? 0}px 20px; font-size: ${d.fontSize}px; line-height: 1; ${getBlockStyle(block)}">
+            <td align="${d.textAlign}" valign="${d.verticalAlign === 'center' ? 'middle' : (d.verticalAlign || 'top')}" style="padding: ${d.paddingTop ?? 0}px 20px ${d.paddingBottom ?? 0}px 20px; font-size: ${d.fontSize}px; line-height: 1; ${getBlockStyle(block)}">
               ${d.emoji || '😊'}
             </td>
           </tr>
@@ -225,7 +225,7 @@ export const exportToHtml = (blocks: NewsletterBlock[], settings: NewsletterSett
           }
           
           return `
-            <td width="${colWidths[i]}%" align="center" valign="${item.data.verticalAlign || 'top'}" style="padding: 10px;">
+            <td width="${colWidths[i]}%" align="center" valign="${item.data.verticalAlign === 'center' ? 'middle' : (item.data.verticalAlign || 'top')}" style="padding: 10px;">
               ${content}
             </td>
           `;
