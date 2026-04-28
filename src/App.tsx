@@ -63,8 +63,10 @@ export default function App() {
     
     // Check for size limits (Firestore 1MB limit)
     const payloadSize = encodeURI(JSON.stringify(blocks) + JSON.stringify(settings)).length;
-    if (payloadSize > 800000) { // Safety margin at 800KB
-      toast.error('O layout é muito grande para salvar. Tente usar links de imagens em vez de uploads diretos.');
+    if (payloadSize > 950000) { // Closer to 1MB limit
+      toast.error('O layout é muito grande para salvar.', {
+        description: 'Tente usar links de imagens hospedadas externamente em vez de fazer upload de arquivos grandes. O limite total é de 1MB.'
+      });
       setIsSaving(false);
       return;
     }

@@ -502,6 +502,8 @@ const NewsletterCanvas: React.FC<NewsletterCanvasProps> = ({
               style={{ 
                 paddingTop: `${block.data.paddingTop ?? 0}px`, 
                 paddingBottom: `${block.data.paddingBottom ?? 0}px`,
+                paddingLeft: `${block.data.paddingLeft ?? 20}px`,
+                paddingRight: `${block.data.paddingRight ?? 20}px`,
                 minHeight: block.type === 'column-layout' ? 'auto' : 'unset'
               }}
             >

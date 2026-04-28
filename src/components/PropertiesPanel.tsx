@@ -385,6 +385,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                   <Upload size={14} />
                   Fazer Upload
                 </button>
+                <p className="text-[9px] text-slate-400">Dica: Use links de imagens sempre que possível para não exceder o limite de salvamento do layout.</p>
                 <div className="relative">
                   <p className="text-[10px] text-slate-500 mb-1">Ou insira o link</p>
                   <input
@@ -1666,6 +1667,37 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                 onChange={(e) => updateData({ paddingBottom: parseInt(e.target.value) })}
                 className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
               />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <div className="flex justify-between mb-1">
+                  <p className="text-[10px] text-slate-500">Pad. Esq. (px)</p>
+                  <span className="text-[10px] font-bold">{selectedBlock.data.paddingLeft ?? 20}px</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={selectedBlock.data.paddingLeft ?? 20}
+                  onChange={(e) => updateData({ paddingLeft: parseInt(e.target.value) })}
+                  className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                />
+              </div>
+              <div>
+                <div className="flex justify-between mb-1">
+                  <p className="text-[10px] text-slate-500">Pad. Dir. (px)</p>
+                  <span className="text-[10px] font-bold">{selectedBlock.data.paddingRight ?? 20}px</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={selectedBlock.data.paddingRight ?? 20}
+                  onChange={(e) => updateData({ paddingRight: parseInt(e.target.value) })}
+                  className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                />
+              </div>
             </div>
 
             <div>
