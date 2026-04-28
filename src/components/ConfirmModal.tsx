@@ -10,6 +10,7 @@ interface ConfirmModalProps {
   confirmText?: string;
   cancelText?: string;
   variant?: 'danger' | 'primary';
+  isLoading?: boolean;
 }
 
 const ConfirmModal: React.FC<ConfirmModalProps> = ({ 
@@ -20,7 +21,8 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
   message, 
   confirmText = 'Confirmar', 
   cancelText = 'Cancelar',
-  variant = 'primary'
+  variant = 'primary',
+  isLoading = false
 }) => {
   if (!isOpen) return null;
 
@@ -34,7 +36,8 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
           </div>
           <button 
             onClick={onClose}
-            className="p-2 hover:bg-slate-200 rounded-full transition-colors"
+            disabled={isLoading}
+            className="p-2 hover:bg-slate-200 rounded-full transition-colors disabled:opacity-50"
           >
             <X size={20} className="text-slate-500" />
           </button>
@@ -46,22 +49,28 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
           <div className="flex gap-3">
             <button
               onClick={onClose}
-              className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-200 transition-all"
+              disabled={isLoading}
+              className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-200 transition-all disabled:opacity-50"
             >
               {cancelText}
             </button>
             <button
-              onClick={() => {
-                onConfirm();
-                onClose();
-              }}
-              className={`flex-1 py-3 text-white rounded-xl font-bold text-sm transition-all shadow-lg ${
+              onClick={() => onConfirm()}
+              disabled={isLoading}
+              className={`flex-1 py-3 text-white rounded-xl font-bold text-sm transition-all shadow-lg flex items-center justify-center gap-2 ${
                 variant === 'danger' 
                   ? 'bg-red-600 hover:bg-red-700 shadow-red-100' 
                   : 'bg-blue-600 hover:bg-blue-700 shadow-blue-100'
-              }`}
+              } disabled:opacity-50`}
             >
-              {confirmText}
+              {isLoading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Processando...
+                </>
+              ) : (
+                confirmText
+              )}
             </button>
           </div>
         </div>

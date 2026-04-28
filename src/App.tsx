@@ -15,7 +15,7 @@ import PresetModal from './components/PresetModal';
 import ConfirmModal from './components/ConfirmModal';
 import HowToUseModal from './components/HowToUseModal';
 import { exportToHtml } from './exportHtml';
-import { db, handleFirestoreError, OperationType } from './firebase';
+import { db, auth, handleFirestoreError, OperationType } from './firebase';
 import { collection, onSnapshot, query, orderBy, setDoc, doc, deleteDoc } from 'firebase/firestore';
 
 export default function App() {
@@ -33,6 +33,8 @@ export default function App() {
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
   const [isHowToUseOpen, setIsHowToUseOpen] = useState(false);
   const [activePreset, setActivePreset] = useState<Preset | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [iconPickerCallback, setIconPickerCallback] = useState<((name: string) => void) | null>(null);
   const [settings, setSettings] = useState<NewsletterSettings>({
     backgroundColor: '#f1f5f9',
@@ -56,6 +58,7 @@ export default function App() {
   }, []);
 
   const savePreset = async (name: string) => {
+    setIsSaving(true);
     const id = Math.random().toString(36).substr(2, 9);
     const newPreset: Preset = {
       id,
@@ -63,7 +66,7 @@ export default function App() {
       blocks: JSON.parse(JSON.stringify(blocks)),
       settings: { ...settings },
       createdAt: Date.now(),
-      uid: 'anonymous'
+      uid: auth.currentUser?.uid || 'anonymous'
     };
 
     try {
@@ -74,7 +77,10 @@ export default function App() {
         icon: <CheckCircle2 className="text-emerald-500" size={16} />
       });
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, `presets/${id}`);
+      console.error('Error saving preset:', error);
+      toast.error('Erro ao salvar layout. Tente novamente.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -113,26 +119,34 @@ export default function App() {
 
   const confirmDeletePreset = async () => {
     if (activePreset) {
+      setIsDeleting(true);
       try {
         await deleteDoc(doc(db, 'presets', activePreset.id));
         toast.info('Layout excluído.');
         setActivePreset(null);
         setIsConfirmDeleteOpen(false);
       } catch (error) {
-        handleFirestoreError(error, OperationType.DELETE, `presets/${activePreset.id}`);
+        console.error('Error deleting preset:', error);
+        toast.error('Erro ao excluir layout.');
+      } finally {
+        setIsDeleting(false);
       }
     }
   };
 
   const confirmRenamePreset = async (newName: string) => {
     if (activePreset) {
+      setIsSaving(true);
       try {
         await setDoc(doc(db, 'presets', activePreset.id), { ...activePreset, name: newName });
         setIsRenameModalOpen(false);
         toast.success('Layout renomeado.');
         setActivePreset(null);
       } catch (error) {
-        handleFirestoreError(error, OperationType.UPDATE, `presets/${activePreset.id}`);
+        console.error('Error renaming preset:', error);
+        toast.error('Erro ao renomear layout.');
+      } finally {
+        setIsSaving(false);
       }
     }
   };
@@ -140,8 +154,8 @@ export default function App() {
   const addBlock = (type: string, customData?: any) => {
     const id = Math.random().toString(36).substr(2, 9);
     let data: any = {
-      paddingTop: 10,
-      paddingBottom: 10
+      paddingTop: 0,
+      paddingBottom: 0
     };
 
     switch (type) {
@@ -446,6 +460,7 @@ export default function App() {
         isOpen={isSaveModalOpen}
         onClose={() => setIsSaveModalOpen(false)}
         onSave={savePreset}
+        isLoading={isSaving}
         title="Salvar Novo Layout"
       />
 
@@ -458,6 +473,7 @@ export default function App() {
         }}
         onSave={confirmRenamePreset}
         initialValue={activePreset?.name}
+        isLoading={isSaving}
         title="Renomear Layout"
       />
 
@@ -482,6 +498,7 @@ export default function App() {
           setActivePreset(null);
         }}
         onConfirm={confirmDeletePreset}
+        isLoading={isDeleting}
         title="Excluir Layout"
         message={`Tem certeza que deseja excluir o layout "${activePreset?.name}"? Esta ação não pode ser desfeita.`}
         confirmText="Excluir"

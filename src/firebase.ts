@@ -1,10 +1,12 @@
 import { initializeApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
 import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, query, where, orderBy, serverTimestamp, getDocFromServer } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
 // Initialize Firebase SDK
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+export const auth = getAuth(app);
 
 // Firestore error handling
 export enum OperationType {
@@ -28,9 +30,7 @@ export interface FirestoreErrorInfo {
     tenantId: string | null | undefined;
     providerInfo: {
       providerId: string;
-      displayName: string | null;
       email: string | null;
-      photoUrl: string | null;
     }[];
   }
 }
@@ -39,12 +39,15 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
-      userId: undefined,
-      email: undefined,
-      emailVerified: undefined,
-      isAnonymous: undefined,
-      tenantId: undefined,
-      providerInfo: []
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData?.map(provider => ({
+        providerId: provider.providerId,
+        email: provider.email,
+      })) || []
     },
     operationType,
     path

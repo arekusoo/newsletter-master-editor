@@ -497,44 +497,104 @@ const NewsletterCanvas: React.FC<NewsletterCanvasProps> = ({
             <div 
               className={`w-full flex flex-col ${block.data.verticalAlign === 'bottom' ? 'justify-end' : 'justify-start'}`}
               style={{ 
-                paddingTop: `${block.data.paddingTop ?? 10}px`, 
-                paddingBottom: `${block.data.paddingBottom ?? 10}px`,
+                paddingTop: `${block.data.paddingTop ?? 0}px`, 
+                paddingBottom: `${block.data.paddingBottom ?? 0}px`,
                 minHeight: block.type === 'column-layout' ? 'auto' : 'unset'
               }}
             >
               {block.type === 'column-layout' ? (
-                <div className="grid gap-4 px-4" style={{ gridTemplateColumns: `repeat(${block.data.columns}, 1fr)` }}>
+                <div 
+                  className="flex px-4 items-stretch relative" 
+                  style={{ gap: '1rem' }}
+                >
                   {block.data.items.map((item: any, i: number) => {
                     const isSubSelected = selectedBlockId === block.id && selectedSubBlockIndex === i;
+                    const width = block.data.widths?.[i] ?? (100 / block.data.columns);
                     return (
-                      <div 
-                        key={i} 
-                        onDragOver={(e) => handleSlotDragOver(e, block.id, i)}
-                        onDragLeave={() => setDragOverSlot(null)}
-                        onDrop={(e) => handleSlotDrop(e, block.id, i)}
-                        className={`min-h-[40px] rounded-lg overflow-hidden flex flex-col ${
-                          item.data?.verticalAlign === 'bottom' ? 'justify-end' : 'justify-start'
-                        } items-center border-2 transition-all ${
-                          isSubSelected ? 'border-blue-500 ring-2 ring-blue-200' : 'border-transparent'
-                        } ${
-                          dragOverSlot?.blockId === block.id && dragOverSlot?.index === i 
-                          ? 'border-blue-500 bg-blue-50 scale-[1.02]' 
-                          : ''
-                        }`}
-                        style={{
-                          backgroundColor: item.backgroundColor || 'transparent',
-                          borderColor: item.borderColor || 'transparent',
-                          borderWidth: `${item.borderWidth || 0}px`,
-                          borderStyle: 'solid',
-                          borderRadius: `${item.borderRadius || 8}px`,
-                        }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onSelectBlock(block.id, i);
-                        }}
-                      >
-                        {renderColumnItem(item, block, i, isSubSelected)}
-                      </div>
+                      <React.Fragment key={i}>
+                        <div 
+                          onDragOver={(e) => handleSlotDragOver(e, block.id, i)}
+                          onDragLeave={() => setDragOverSlot(null)}
+                          onDrop={(e) => handleSlotDrop(e, block.id, i)}
+                          className={`min-h-[40px] rounded-lg overflow-hidden flex flex-col ${
+                            item.data?.verticalAlign === 'bottom' ? 'justify-end' : 'justify-start'
+                          } items-center border-2 transition-all ${
+                            isSubSelected ? 'border-blue-500 ring-2 ring-blue-200' : 'border-transparent'
+                          } ${
+                            dragOverSlot?.blockId === block.id && dragOverSlot?.index === i 
+                            ? 'border-blue-500 bg-blue-50 scale-[1.02]' 
+                            : ''
+                          }`}
+                          style={{
+                            width: `${width}%`,
+                            backgroundColor: item.backgroundColor || 'transparent',
+                            borderColor: item.borderColor || 'transparent',
+                            borderWidth: `${item.borderWidth || 0}px`,
+                            borderStyle: 'solid',
+                            borderRadius: `${item.borderRadius || 8}px`,
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSelectBlock(block.id, i);
+                          }}
+                        >
+                          {renderColumnItem(item, block, i, isSubSelected)}
+                        </div>
+
+                        {/* Resize handle */}
+                        {selectedBlockId === block.id && i < block.data.columns - 1 && (
+                          <div
+                            className="absolute z-30 w-4 -ml-2 cursor-col-resize flex items-center justify-center group/handle h-full"
+                            style={{ 
+                              left: `calc(${block.data.widths?.slice(0, i + 1).reduce((a: number, b: number) => a + b, 0) ?? (100 / block.data.columns * (i + 1))}% + 1rem * ${(i+1) / block.data.columns})` 
+                            }}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              const startX = e.clientX;
+                              const currentWidths = block.data.widths || (block.data.columns === 2 ? [50, 50] : [33.33, 33.33, 33.34]);
+                              const initialWidthLeft = currentWidths[i];
+                              const initialWidthRight = currentWidths[i + 1];
+                              const containerWidth = e.currentTarget.parentElement?.clientWidth || 600;
+
+                              const onMouseMove = (moveEvent: MouseEvent) => {
+                                const deltaX = moveEvent.clientX - startX;
+                                const deltaPercent = (deltaX / containerWidth) * 100;
+                                
+                                const newWidths = [...currentWidths];
+                                const newLeft = Math.round(Math.max(10, Math.min(80, initialWidthLeft + deltaPercent)));
+                                const diff = newLeft - initialWidthLeft;
+                                
+                                newWidths[i] = newLeft;
+                                newWidths[i + 1] = Math.round(Math.max(10, initialWidthRight - diff));
+                                
+                                if (block.data.columns === 2) {
+                                  newWidths[1] = 100 - newWidths[0];
+                                } else if (block.data.columns === 3) {
+                                  newWidths[2] = 100 - newWidths[0] - newWidths[1];
+                                }
+
+                                onUpdateBlock(block.id, { ...block.data, widths: newWidths });
+                              };
+
+                              const onMouseUp = () => {
+                                document.removeEventListener('mousemove', onMouseMove);
+                                document.removeEventListener('mouseup', onMouseUp);
+                              };
+
+                              document.addEventListener('mousemove', onMouseMove);
+                              document.addEventListener('mouseup', onMouseUp);
+                            }}
+                          >
+                            <div className="w-1 h-3/4 bg-blue-300 group-hover/handle:bg-blue-500 rounded-full transition-colors opacity-0 group-hover/handle:opacity-100" />
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 bg-white border border-blue-400 rounded-full shadow-lg flex items-center justify-center scale-75 group-hover/handle:scale-100 opacity-0 group-hover/handle:opacity-100 transition-all">
+                              <div className="flex gap-0.5">
+                                <div className="w-0.5 h-2 bg-blue-500 rounded-full" />
+                                <div className="w-0.5 h-2 bg-blue-500 rounded-full" />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </React.Fragment>
                     );
                   })}
                 </div>

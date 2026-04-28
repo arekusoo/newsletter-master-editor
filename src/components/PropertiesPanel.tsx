@@ -532,7 +532,10 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
             <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Configurações do Emoji</label>
             <div className="space-y-4">
               <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Emoji Selecionado</label>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Emoji Selecionado</label>
+                  <span className="px-2 py-0.5 bg-blue-100 text-blue-600 text-[9px] font-bold rounded uppercase">Clique para trocar</span>
+                </div>
                 <div className="relative">
                   <button
                     onClick={() => setEmojiPickerTarget(emojiPickerTarget === 'main' ? null : 'main')}
@@ -846,6 +849,63 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
 
         {selectedBlock.type === 'column-layout' && (
           <>
+            <section className="p-4 bg-blue-50 rounded-xl border border-blue-100 mb-6">
+              <label className="block text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-3">Ajustar Largura das Colunas</label>
+              <div className="space-y-4">
+                {selectedBlock.data.columns === 2 ? (
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-[10px] font-bold text-slate-600">
+                      <span>Col 1: {Math.round(selectedBlock.data.widths?.[0] ?? 50)}%</span>
+                      <span>Col 2: {Math.round(selectedBlock.data.widths?.[1] ?? 50)}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="20"
+                      max="80"
+                      value={selectedBlock.data.widths?.[0] ?? 50}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value);
+                        updateData({ widths: [val, 100 - val] });
+                      }}
+                      className="w-full h-1.5 bg-blue-100 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {[0, 1].map(index => (
+                      <div key={index} className="space-y-1">
+                        <div className="flex justify-between text-[10px] font-bold text-slate-600">
+                          <span>Coluna {index + 1}: {Math.round(selectedBlock.data.widths?.[index] ?? 33)}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="10"
+                          max="80"
+                          value={selectedBlock.data.widths?.[index] ?? 33}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value);
+                            const currentWidths = selectedBlock.data.widths || [33.33, 33.33, 33.34];
+                            const newWidths = [...currentWidths];
+                            const diff = val - newWidths[index];
+                            newWidths[index] = val;
+                            // Adjust the next one (wrap around)
+                            const nextIndex = (index + 1) % 3;
+                            newWidths[nextIndex] = Math.max(10, newWidths[nextIndex] - diff);
+                            // Adjust the third one to make sure it sums to 100
+                            const thirdIndex = (index + 2) % 3;
+                            newWidths[thirdIndex] = 100 - newWidths[index] - newWidths[nextIndex];
+                            
+                            updateData({ widths: newWidths });
+                          }}
+                          className="w-full h-1.5 bg-blue-100 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </section>
+
             <section>
               <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Conteúdo das Colunas</label>
               <p className="text-[10px] text-slate-400 mb-4 italic">Arraste blocos da barra lateral para as colunas no canvas para preenchê-las.</p>
@@ -1581,13 +1641,13 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
             <div>
               <div className="flex justify-between mb-1">
                 <p className="text-[10px] text-slate-500">Padding Superior (px)</p>
-                <span className="text-[10px] font-bold">{selectedBlock.data.paddingTop ?? 10}px</span>
+                <span className="text-[10px] font-bold">{selectedBlock.data.paddingTop ?? 0}px</span>
               </div>
               <input
                 type="range"
                 min="0"
                 max="100"
-                value={selectedBlock.data.paddingTop ?? 10}
+                value={selectedBlock.data.paddingTop ?? 0}
                 onChange={(e) => updateData({ paddingTop: parseInt(e.target.value) })}
                 className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
               />
@@ -1595,13 +1655,13 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
             <div>
               <div className="flex justify-between mb-1">
                 <p className="text-[10px] text-slate-500">Padding Inferior (px)</p>
-                <span className="text-[10px] font-bold">{selectedBlock.data.paddingBottom ?? 10}px</span>
+                <span className="text-[10px] font-bold">{selectedBlock.data.paddingBottom ?? 0}px</span>
               </div>
               <input
                 type="range"
                 min="0"
                 max="100"
-                value={selectedBlock.data.paddingBottom ?? 10}
+                value={selectedBlock.data.paddingBottom ?? 0}
                 onChange={(e) => updateData({ paddingBottom: parseInt(e.target.value) })}
                 className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
               />

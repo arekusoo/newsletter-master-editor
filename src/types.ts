@@ -71,6 +71,7 @@ export interface ColumnItem {
 export interface ColumnLayoutBlockData {
   columns: 2 | 3;
   items: ColumnItem[];
+  widths?: number[]; // Percentages
   borderRadius: number;
 }
 
