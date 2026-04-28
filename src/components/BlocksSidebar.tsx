@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Type, Image as ImageIcon, Minus, Star, LayoutGrid, Columns2, Columns3, MousePointer2, Smile, Bookmark, Search, Trash2, Edit2, Clock, Sparkles, Loader2, Send } from 'lucide-react';
 import { BlockType, Preset, NewsletterBlock } from '../types';
 import { GoogleGenAI } from "@google/genai";
+import { toast } from 'sonner';
 
 interface BlocksSidebarProps {
   activeTab: 'blocks' | 'layouts' | 'models';
@@ -55,32 +56,48 @@ const BlocksSidebar: React.FC<BlocksSidebarProps> = ({
   const generateWithAI = async () => {
     if (!aiPrompt.trim()) return;
     setIsGenerating(true);
+    const toastId = toast.loading('Gerando modelo com IA...');
+
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        throw new Error('Configuração da API Key do Gemini não encontrada.');
+      }
+
+      const ai = new GoogleGenAI({ apiKey });
       
       const systemPrompt = `Você é um designer de newsletters especialista. 
       Gere uma estrutura de newsletter em formato JSON baseada na descrição do usuário.
-      O JSON deve ser um array de objetos seguindo esta interface:
-      interface NewsletterBlock {
-        id: string; // use Math.random().toString(36).substr(2, 9)
-        type: 'text' | 'image' | 'icon' | 'divider' | 'column-layout' | 'button' | 'emoji';
-        data: any; // dados específicos do tipo
-      }
+      O JSON deve ser um array de objetos seguindo esta estrutura EXATA:
+      [
+        {
+          "id": "string",
+          "type": "text" | "image" | "button" | "divider" | "emoji" | "icon" | "column-layout",
+          "data": { ... }
+        }
+      ]
       
-      Exemplo de dados:
+      Regras de dados:
       - text: { content: string, fontSize: number, color: string, textAlign: 'left'|'center'|'right' }
       - image: { url: string, alt: string, borderRadius: number, width: number }
-      - button: { text: string, url: string, backgroundColor: string, color: string, borderRadius: number }
+      - button: { text: string, url: string, backgroundColor: string, color: string, borderRadius: number, textAlign: 'center' }
+      - divider: { color: string, height: number, margin: number }
+      - emoji: { emoji: string, fontSize: number, textAlign: 'center' }
+      - icon: { iconName: string, size: 'small'|'medium'|'large', color: string }
       - column-layout: { columns: 2|3, items: [{ type, data }] }
       
-      Retorne APENAS o array JSON, sem markdown ou explicações.`;
+      Importante: Gere IDs únicos usando Math.random().toString(36).substr(2, 9).
+      Retorne APENAS o array JSON puro, sem blocos de código markdown.`;
 
       const result = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
-        contents: [systemPrompt, aiPrompt]
+        contents: [{ text: `${systemPrompt}\n\nPedido do usuário: ${aiPrompt}` }]
       });
       
       const text = result.text || '';
+      if (!text) {
+        throw new Error('A IA não retornou conteúdo.');
+      }
       
       // Clean up potential markdown
       const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
@@ -90,10 +107,14 @@ const BlocksSidebar: React.FC<BlocksSidebarProps> = ({
         onAddAIGeneratedBlocks(generatedBlocks);
         setAiPrompt('');
         setShowAiInput(false);
+        toast.success('Modelo gerado com sucesso!', { id: toastId });
+      } else {
+        throw new Error('A resposta da IA não é um formato de lista válido.');
       }
     } catch (error) {
       console.error('Error generating with AI:', error);
-      alert('Erro ao gerar com IA. Tente novamente.');
+      const errorMessage = error instanceof Error ? error.message : 'Erro deconhecido';
+      toast.error(`Falha ao gerar com IA: ${errorMessage}`, { id: toastId });
     } finally {
       setIsGenerating(false);
     }
