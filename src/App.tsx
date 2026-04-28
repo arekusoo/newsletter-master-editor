@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Download, Layout as LayoutIcon, Laptop, Smartphone, Eye, X, Search, Trash2, Edit2, Plus, CheckCircle2, Bookmark, Link } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import { NewsletterBlock, NewsletterSettings, BlockType, Preset } from './types';
@@ -328,7 +328,7 @@ export default function App() {
   };
 
   const selectedBlock = blocks.find(b => b.id === selectedBlockId) || null;
-  const dataSize = React.useMemo(() => JSON.stringify(blocks).length, [blocks]);
+  const dataSize = useMemo(() => JSON.stringify(blocks).length, [blocks]);
   const storagePercentage = Math.min((dataSize / 1048576) * 100, 100);
 
   return (
