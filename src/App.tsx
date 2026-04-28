@@ -346,12 +346,6 @@ export default function App() {
           onLoadPreset={loadPreset}
           onDeletePreset={deletePreset}
           onRenamePreset={renamePreset}
-          onAddAIGeneratedBlocks={(newBlocks) => {
-            setBlocks([...blocks, ...newBlocks]);
-            toast.success('Modelo gerado com IA!', {
-              description: `${newBlocks.length} blocos foram adicionados.`,
-            });
-          }}
         />
 
         {/* Canvas Area */}

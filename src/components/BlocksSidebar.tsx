@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Type, Image as ImageIcon, Minus, Star, LayoutGrid, Columns2, Columns3, MousePointer2, Smile, Bookmark, Search, Trash2, Edit2, Clock, Sparkles, Loader2, Send } from 'lucide-react';
+import { Type, Image as ImageIcon, Minus, Star, LayoutGrid, Columns2, Columns3, MousePointer2, Smile, Bookmark, Search, Trash2, Edit2, Clock } from 'lucide-react';
 import { BlockType, Preset, NewsletterBlock } from '../types';
 import { toast } from 'sonner';
 
@@ -10,7 +10,6 @@ interface BlocksSidebarProps {
   onLoadPreset: (preset: Preset) => void;
   onDeletePreset: (id: string) => void;
   onRenamePreset: (id: string) => void;
-  onAddAIGeneratedBlocks: (blocks: NewsletterBlock[]) => void;
 }
 
 const NewsletterPreview: React.FC<{ blocks: any[], settings: any }> = ({ blocks, settings }) => {
@@ -44,51 +43,9 @@ const BlocksSidebar: React.FC<BlocksSidebarProps> = ({
   presets, 
   onLoadPreset, 
   onDeletePreset, 
-  onRenamePreset,
-  onAddAIGeneratedBlocks
+  onRenamePreset
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [aiPrompt, setAiPrompt] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [showAiInput, setShowAiInput] = useState(false);
-
-  const generateWithAI = async () => {
-    if (!aiPrompt.trim()) return;
-    setIsGenerating(true);
-    const toastId = toast.loading('Gerando modelo com IA...');
-
-    try {
-      const response = await fetch('/api/generate-blocks', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ prompt: aiPrompt }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Erro do servidor: ${response.status}`);
-      }
-
-      const generatedBlocks = await response.json();
-      
-      if (Array.isArray(generatedBlocks)) {
-        onAddAIGeneratedBlocks(generatedBlocks);
-        setAiPrompt('');
-        setShowAiInput(false);
-        toast.success('Modelo gerado com sucesso!', { id: toastId });
-      } else {
-        throw new Error('A resposta da IA não é um formato de lista válido.');
-      }
-    } catch (error) {
-      console.error('Error generating with AI:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
-      toast.error(`Falha ao gerar com IA: ${errorMessage}`, { id: toastId });
-    } finally {
-      setIsGenerating(false);
-    }
-  };
 
   const handleDragStart = (e: React.DragEvent, type: BlockType | string, data?: any) => {
     e.dataTransfer.setData('blockType', type);
@@ -182,43 +139,6 @@ const BlocksSidebar: React.FC<BlocksSidebarProps> = ({
 
         {activeTab === 'models' && (
           <div className="space-y-4">
-            <button
-              onClick={() => setShowAiInput(!showAiInput)}
-              className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-bold text-xs shadow-lg shadow-blue-200 hover:shadow-blue-300 hover:-translate-y-0.5 transition-all mb-6"
-            >
-              <Sparkles size={16} />
-              Criar com IA
-            </button>
-
-            {showAiInput && (
-              <div className="p-4 bg-blue-50 rounded-xl border border-blue-100 mb-6 space-y-3 animate-in fade-in slide-in-from-top-2">
-                <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Descreva sua newsletter</p>
-                <textarea
-                  value={aiPrompt}
-                  onChange={(e) => setAiPrompt(e.target.value)}
-                  placeholder="Ex: Uma newsletter minimalista para uma agência de viagens com tons de azul e fotos de praias..."
-                  className="w-full p-3 bg-white border border-blue-200 rounded-lg text-xs h-24 focus:ring-2 focus:ring-blue-500 outline-none resize-none"
-                />
-                <button
-                  onClick={generateWithAI}
-                  disabled={isGenerating || !aiPrompt.trim()}
-                  className="w-full py-2 bg-blue-600 text-white rounded-lg font-bold text-xs flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isGenerating ? (
-                    <>
-                      <Loader2 size={14} className="animate-spin" />
-                      Gerando...
-                    </>
-                  ) : (
-                    <>
-                      <Send size={14} />
-                      Gerar Modelo
-                    </>
-                  )}
-                </button>
-              </div>
-            )}
-
             <div className="relative mb-6">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
