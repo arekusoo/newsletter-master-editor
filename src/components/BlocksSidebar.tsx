@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Type, Image as ImageIcon, Minus, Star, LayoutGrid, Columns2, Columns3, MousePointer2, Smile, Bookmark, Search, Trash2, Edit2, Clock, Sparkles, Loader2, Send } from 'lucide-react';
 import { BlockType, Preset, NewsletterBlock } from '../types';
-import { GoogleGenAI } from "@google/genai";
 import { toast } from 'sonner';
 
 interface BlocksSidebarProps {
@@ -59,59 +58,20 @@ const BlocksSidebar: React.FC<BlocksSidebarProps> = ({
     const toastId = toast.loading('Gerando modelo com IA...');
 
     try {
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) {
-        throw new Error('Configuração da API Key do Gemini não encontrada.');
-      }
-
-      const ai = new GoogleGenAI({ apiKey });
-      
-      const systemPrompt = `Você é um designer de newsletters especialista. 
-      Gere uma estrutura de newsletter em formato JSON baseada na descrição do usuário.
-      O JSON deve ser um array de objetos seguindo esta estrutura EXATA:
-      [
-        {
-          "id": "string",
-          "type": "text" | "image" | "button" | "divider" | "emoji" | "icon" | "column-layout",
-          "data": { ... }
-        }
-      ]
-      
-      Regras de dados:
-      - text: { content: string, fontSize: number, color: string, textAlign: 'left'|'center'|'right' }
-      - image: { url: string, alt: string, borderRadius: number, width: number }
-      - button: { text: string, url: string, backgroundColor: string, color: string, borderRadius: number, textAlign: 'center' }
-      - divider: { color: string, height: number, margin: number }
-      - emoji: { emoji: string, fontSize: number, textAlign: 'center' }
-      - icon: { iconName: string, size: 'small'|'medium'|'large', color: string }
-      - column-layout: { columns: 2|3, items: [{ type, data }] }
-      
-      Importante: Gere IDs únicos usando Math.random().toString(36).substr(2, 9).
-      Retorne APENAS o array JSON puro.`;
-
-      const result = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: `${systemPrompt}\n\nPedido do usuário: ${aiPrompt}`,
-        config: {
-          responseMimeType: "application/json"
-        }
+      const response = await fetch('/api/generate-blocks', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ prompt: aiPrompt }),
       });
-      
-      const text = result.text;
-      if (!text) {
-        throw new Error('A IA não retornou conteúdo.');
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Erro do servidor: ${response.status}`);
       }
-      
-      // Robust JSON extraction
-      let generatedBlocks;
-      try {
-        const match = text.match(/\[[\s\S]*\]/);
-        const jsonStr = match ? match[0] : text;
-        generatedBlocks = JSON.parse(jsonStr);
-      } catch (e) {
-        console.error('Failed to parse AI JSON:', text);
-        throw new Error('A resposta da IA não está em um formato JSON válido.');
-      }
+
+      const generatedBlocks = await response.json();
       
       if (Array.isArray(generatedBlocks)) {
         onAddAIGeneratedBlocks(generatedBlocks);
@@ -123,7 +83,7 @@ const BlocksSidebar: React.FC<BlocksSidebarProps> = ({
       }
     } catch (error) {
       console.error('Error generating with AI:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Erro deconhecido';
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
       toast.error(`Falha ao gerar com IA: ${errorMessage}`, { id: toastId });
     } finally {
       setIsGenerating(false);
