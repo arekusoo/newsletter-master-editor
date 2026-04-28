@@ -71,27 +71,17 @@ const NewsletterCanvas: React.FC<NewsletterCanvasProps> = ({
     setIsDraggingOver(false);
     
     const type = e.dataTransfer.getData('blockType');
-    if (!type || type === 'column-layout' || type === 'divider' || type === 'flex-row') return;
+    if (!type || type === 'column-layout' || type === 'divider') return;
 
     const block = blocks.find(b => b.id === blockId);
-    if (block && (block.type === 'column-layout' || block.type === 'flex-row')) {
+    if (block && block.type === 'column-layout') {
       const newData = { ...block.data };
       const defaultData = getDefaultDataForType(type);
       
-      if (block.type === 'column-layout') {
-        newData.items[index] = {
-          type: type as any,
-          data: defaultData
-        };
-      } else if (block.type === 'flex-row') {
-        // For flex-row, we can either replace or append. Let's append if dropping on a specific slot or just add to the end.
-        // Actually, let's make it replace the slot if it's an existing one, or add a new one.
-        if (index === -1) {
-          newData.items.push({ type: type as any, data: defaultData });
-        } else {
-          newData.items[index] = { type: type as any, data: defaultData };
-        }
-      }
+      newData.items[index] = {
+        type: type as any,
+        data: defaultData
+      };
       onUpdateBlock(blockId, newData);
     }
   };
@@ -509,12 +499,15 @@ const NewsletterCanvas: React.FC<NewsletterCanvasProps> = ({
             >
               {block.type === 'column-layout' ? (
                 <div 
-                  className="flex px-4 items-stretch relative" 
-                  style={{ gap: '1rem' }}
+                  className="flex px-0 items-stretch relative" 
+                  style={{ gap: `${block.data.gap ?? 16}px` }}
                 >
                   {block.data.items.map((item: any, i: number) => {
                     const isSubSelected = selectedBlockId === block.id && selectedSubBlockIndex === i;
                     const width = block.data.widths?.[i] ?? (100 / block.data.columns);
+                    const gapValue = block.data.gap ?? 16;
+                    const totalGap = gapValue * (block.data.columns - 1);
+                    
                     return (
                       <React.Fragment key={i}>
                         <div 
@@ -532,7 +525,7 @@ const NewsletterCanvas: React.FC<NewsletterCanvasProps> = ({
                             : ''
                           }`}
                           style={{
-                            width: `${width}%`,
+                            width: `calc(${width}% - ${totalGap / block.data.columns}px)`,
                             backgroundColor: item.backgroundColor || 'transparent',
                             borderColor: item.borderColor || 'transparent',
                             borderWidth: `${item.borderWidth || 0}px`,
@@ -552,12 +545,12 @@ const NewsletterCanvas: React.FC<NewsletterCanvasProps> = ({
                           <div
                             className="absolute z-30 w-4 -ml-2 cursor-col-resize flex items-center justify-center group/handle h-full"
                             style={{ 
-                              left: `calc(${block.data.widths?.slice(0, i + 1).reduce((a: number, b: number) => a + b, 0) ?? (100 / block.data.columns * (i + 1))}% + 1rem * ${(i+1) / block.data.columns})` 
+                              left: `calc(${block.data.widths?.slice(0, i + 1).reduce((a: number, b: number) => a + b, 0)}% - ${totalGap / block.data.columns / 4}px + ${gapValue / 2}px * ${i})` 
                             }}
                             onMouseDown={(e) => {
                               e.preventDefault();
                               const startX = e.clientX;
-                              const currentWidths = block.data.widths || (block.data.columns === 2 ? [50, 50] : [33.33, 33.33, 33.34]);
+                              const currentWidths = block.data.widths || Array(block.data.columns).fill(100 / block.data.columns);
                               const initialWidthLeft = currentWidths[i];
                               const initialWidthRight = currentWidths[i + 1];
                               const containerWidth = e.currentTarget.parentElement?.clientWidth || 600;
@@ -571,12 +564,13 @@ const NewsletterCanvas: React.FC<NewsletterCanvasProps> = ({
                                 const diff = newLeft - initialWidthLeft;
                                 
                                 newWidths[i] = newLeft;
-                                newWidths[i + 1] = Math.round(Math.max(10, initialWidthRight - diff));
+                                newWidths[i + 1] = Math.max(10, initialWidthRight - diff);
                                 
-                                if (block.data.columns === 2) {
-                                  newWidths[1] = 100 - newWidths[0];
-                                } else if (block.data.columns === 3) {
-                                  newWidths[2] = 100 - newWidths[0] - newWidths[1];
+                                // Normalize
+                                const sumOfAdjusted = newWidths[i] + newWidths[i+1];
+                                const targetSum = initialWidthLeft + initialWidthRight;
+                                if (sumOfAdjusted !== targetSum) {
+                                  newWidths[i+1] = targetSum - newWidths[i];
                                 }
 
                                 onUpdateBlock(block.id, { ...block.data, widths: newWidths });
@@ -603,60 +597,6 @@ const NewsletterCanvas: React.FC<NewsletterCanvasProps> = ({
                       </React.Fragment>
                     );
                   })}
-                </div>
-              ) : block.type === 'flex-row' ? (
-                <div 
-                  className="flex flex-wrap items-center px-4 py-2 min-h-[60px]"
-                  style={{ 
-                    gap: `${block.data.gap || 10}px`, 
-                    justifyContent: block.data.textAlign === 'center' ? 'center' : block.data.textAlign === 'right' ? 'flex-end' : 'flex-start',
-                    alignItems: block.data.alignItems || 'center'
-                  }}
-                  onDragOver={(e) => handleSlotDragOver(e, block.id, -1)}
-                  onDrop={(e) => handleSlotDrop(e, block.id, -1)}
-                >
-                  {block.data.items && block.data.items.length > 0 ? (
-                    block.data.items.map((item: any, i: number) => {
-                      const isSubSelected = selectedBlockId === block.id && selectedSubBlockIndex === i;
-                      return (
-                        <div 
-                          key={i} 
-                          className={`relative group/sub min-w-[20px] rounded-lg transition-all ${isSubSelected ? 'ring-2 ring-blue-500 ring-offset-2' : ''}`}
-                          style={{
-                            backgroundColor: item.backgroundColor || 'transparent',
-                            borderColor: item.borderColor || 'transparent',
-                            borderWidth: `${item.borderWidth || 0}px`,
-                            borderStyle: 'solid',
-                            borderRadius: `${item.borderRadius || 4}px`,
-                          }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onSelectBlock(block.id, i);
-                          }}
-                        >
-                          {renderColumnItem(item, block, i, isSubSelected)}
-                          {isSubSelected && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const newItems = [...block.data.items];
-                                newItems.splice(i, 1);
-                                onUpdateBlock(block.id, { ...block.data, items: newItems });
-                                onSelectBlock(block.id, null);
-                              }}
-                              className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full shadow-lg z-10"
-                            >
-                              <Trash2 size={10} />
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <div className="w-full h-12 border-2 border-dashed border-slate-200 rounded-lg flex items-center justify-center text-slate-400 text-xs">
-                      Arraste itens aqui para alinhar lado a lado
-                    </div>
-                  )}
                 </div>
               ) : renderBlockContent(block)}
             </div>

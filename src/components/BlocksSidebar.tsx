@@ -66,7 +66,7 @@ const BlocksSidebar: React.FC<BlocksSidebarProps> = ({
   const layouts = [
     { type: 'column-layout', data: { columns: 2 }, icon: Columns2, label: '2 Colunas' },
     { type: 'column-layout', data: { columns: 3 }, icon: Columns3, label: '3 Colunas' },
-    { type: 'flex-row', data: { items: [], gap: 10, alignItems: 'center' }, icon: LayoutGrid, label: 'Linha Flexível' },
+    { type: 'column-layout', data: { columns: 4 }, icon: LayoutGrid, label: '4 Colunas' },
   ];
 
   const filteredPresets = presets.filter(p => 

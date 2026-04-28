@@ -1,4 +1,5 @@
 import React from 'react';
+import { toast } from 'sonner';
 import { NewsletterBlock, NewsletterSettings } from '../types';
 import * as LucideIcons from 'lucide-react';
 import { AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline, Type, Image as ImageIcon, Star, Minus, LayoutGrid, Settings2, MousePointer2, Upload, ArrowUp, ArrowDown, Smile, Sparkles, Loader2, Link as LinkIcon, RefreshCw, Maximize2, Square, Circle, Trash2 } from 'lucide-react';
@@ -373,7 +374,44 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                       if (file) {
                         const reader = new FileReader();
                         reader.onload = (re) => {
-                          updateData({ url: re.target?.result as string });
+                          const img = new Image();
+                          img.onload = () => {
+                            const canvas = document.createElement('canvas');
+                            let width = img.width;
+                            let height = img.height;
+                            
+                            // Max dimension 800px
+                            const max_size = 800;
+                            if (width > height) {
+                              if (width > max_size) {
+                                height *= max_size / width;
+                                width = max_size;
+                              }
+                            } else {
+                              if (height > max_size) {
+                                width *= max_size / height;
+                                height = max_size;
+                              }
+                            }
+                            
+                            canvas.width = width;
+                            canvas.height = height;
+                            const ctx = canvas.getContext('2d');
+                            ctx?.drawImage(img, 0, 0, width, height);
+                            
+                            // Compress as JPEG with 0.7 quality
+                            const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                            
+                            // Check if still too large (e.g. > 400KB)
+                            if (compressedDataUrl.length > 400000) {
+                              toast.warning('A imagem ainda está grande.', {
+                                description: 'Tamanho reduzido automaticamente, mas considere usar um link externo para economizar espaço.'
+                              });
+                            }
+                            
+                            updateData({ url: compressedDataUrl });
+                          };
+                          img.src = re.target?.result as string;
                         };
                         reader.readAsDataURL(file);
                       }
@@ -850,62 +888,120 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
 
         {selectedBlock.type === 'column-layout' && (
           <>
-            <section className="p-4 bg-blue-50 rounded-xl border border-blue-100 mb-6">
-              <label className="block text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-3">Ajustar Largura das Colunas</label>
+        <section className="p-4 bg-blue-50 rounded-xl border border-blue-100 mb-6">
+          <label className="block text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-3">Ajustar Largura das Colunas</label>
+          <div className="space-y-4">
+            {selectedBlock.data.columns === 2 ? (
+              <div className="space-y-2">
+                <div className="flex justify-between text-[10px] font-bold text-slate-600">
+                  <span>Col 1: {Math.round(selectedBlock.data.widths?.[0] ?? 50)}%</span>
+                  <span>Col 2: {Math.round(selectedBlock.data.widths?.[1] ?? 50)}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="20"
+                  max="80"
+                  value={selectedBlock.data.widths?.[0] ?? 50}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value);
+                    updateData({ widths: [val, 100 - val] });
+                  }}
+                  className="w-full h-1.5 bg-blue-100 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                />
+              </div>
+            ) : (
               <div className="space-y-4">
-                {selectedBlock.data.columns === 2 ? (
-                  <div className="space-y-2">
+                {Array.from({ length: selectedBlock.data.columns - 1 }).map((_, index) => (
+                  <div key={index} className="space-y-1">
                     <div className="flex justify-between text-[10px] font-bold text-slate-600">
-                      <span>Col 1: {Math.round(selectedBlock.data.widths?.[0] ?? 50)}%</span>
-                      <span>Col 2: {Math.round(selectedBlock.data.widths?.[1] ?? 50)}%</span>
+                      <span>Divisor {index + 1} (Col {index + 1} & {index + 2})</span>
                     </div>
                     <input
                       type="range"
-                      min="20"
-                      max="80"
-                      value={selectedBlock.data.widths?.[0] ?? 50}
+                      min="10"
+                      max="90"
+                      value={selectedBlock.data.widths?.slice(0, index + 1).reduce((a: number, b: number) => a + b, 0) || (100 / selectedBlock.data.columns * (index + 1))}
                       onChange={(e) => {
-                        const val = parseInt(e.target.value);
-                        updateData({ widths: [val, 100 - val] });
+                        const newVal = parseInt(e.target.value);
+                        const columns = selectedBlock.data.columns;
+                        const currentWidths = selectedBlock.data.widths || Array(columns).fill(100 / columns);
+                        const newWidths = [...currentWidths];
+                        
+                        // We are moving the boundary between column[index] and column[index+1]
+                        // Total width up to index + 1 must be newVal
+                        const currentTotalUpToIndex = currentWidths.slice(0, index + 1).reduce((a, b) => a + b, 0);
+                        const currentTotalUpToPrev = index > 0 ? currentWidths.slice(0, index).reduce((a, b) => a + b, 0) : 0;
+                        
+                        const minWidth = 10;
+                        const newWidthOfCurrent = Math.max(minWidth, newVal - currentTotalUpToPrev);
+                        const diff = newWidthOfCurrent - currentWidths[index];
+                        
+                        // Apply change to current and next column
+                        newWidths[index] = newWidthOfCurrent;
+                        newWidths[index + 1] = Math.max(minWidth, currentWidths[index + 1] - diff);
+                        
+                        // Re-normalize everything to ensure it sums to 100
+                        const sum = newWidths.reduce((a, b) => a + b, 0);
+                        if (sum !== 100) {
+                          newWidths[columns - 1] = 100 - newWidths.slice(0, columns - 1).reduce((a, b) => a + b, 0);
+                        }
+                        
+                        updateData({ widths: newWidths });
                       }}
                       className="w-full h-1.5 bg-blue-100 rounded-lg appearance-none cursor-pointer accent-blue-600"
                     />
                   </div>
-                ) : (
-                  <div className="space-y-4">
-                    {[0, 1].map(index => (
-                      <div key={index} className="space-y-1">
-                        <div className="flex justify-between text-[10px] font-bold text-slate-600">
-                          <span>Coluna {index + 1}: {Math.round(selectedBlock.data.widths?.[index] ?? 33)}%</span>
-                        </div>
-                        <input
-                          type="range"
-                          min="10"
-                          max="80"
-                          value={selectedBlock.data.widths?.[index] ?? 33}
-                          onChange={(e) => {
-                            const val = parseInt(e.target.value);
-                            const currentWidths = selectedBlock.data.widths || [33.33, 33.33, 33.34];
-                            const newWidths = [...currentWidths];
-                            const diff = val - newWidths[index];
-                            newWidths[index] = val;
-                            // Adjust the next one (wrap around)
-                            const nextIndex = (index + 1) % 3;
-                            newWidths[nextIndex] = Math.max(10, newWidths[nextIndex] - diff);
-                            // Adjust the third one to make sure it sums to 100
-                            const thirdIndex = (index + 2) % 3;
-                            newWidths[thirdIndex] = 100 - newWidths[index] - newWidths[nextIndex];
-                            
-                            updateData({ widths: newWidths });
-                          }}
-                          className="w-full h-1.5 bg-blue-100 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
+                ))}
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  {selectedBlock.data.widths?.map((w: number, i: number) => (
+                    <div key={i} className="text-[9px] text-slate-500 bg-white p-1 rounded border border-slate-100 text-center truncate">
+                      Col {i+1}: {Math.round(w)}%
+                    </div>
+                  )) || Array.from({ length: selectedBlock.data.columns }).map((_, i) => (
+                    <div key={i} className="text-[9px] text-slate-500 bg-white p-1 rounded border border-slate-100 text-center truncate">
+                      Col {i+1}: {Math.round(100/selectedBlock.data.columns)}%
+                    </div>
+                  ))}
+                </div>
               </div>
-            </section>
+            )}
+          </div>
+
+          <div className="mt-4 pt-4 border-t border-blue-100">
+            <div className="flex justify-between items-center mb-2">
+              <label className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Espaçamento entre itens (Gap)</label>
+              <div className="flex gap-1">
+                {[0, 2, 4, 8].map(v => (
+                  <button
+                    key={v}
+                    onClick={() => updateData({ gap: v })}
+                    className={`px-1.5 py-0.5 rounded text-[9px] font-bold transition-all ${selectedBlock.data.gap === v ? 'bg-blue-600 text-white' : 'bg-blue-100 text-blue-600 hover:bg-blue-200'}`}
+                  >
+                    {v}px
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="range"
+                min="0"
+                max="40"
+                value={selectedBlock.data.gap ?? 16}
+                onChange={(e) => updateData({ gap: parseInt(e.target.value) })}
+                className="flex-1 h-1 bg-blue-100 rounded-lg appearance-none cursor-pointer accent-blue-600"
+              />
+              <input
+                type="number"
+                min="0"
+                max="40"
+                value={selectedBlock.data.gap ?? 16}
+                onChange={(e) => updateData({ gap: parseInt(e.target.value) || 0 })}
+                className="w-12 p-1 border border-blue-100 rounded bg-white text-[10px] text-center font-bold text-blue-600 outline-none"
+              />
+            </div>
+          </div>
+        </section>
 
             <section>
               <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Conteúdo das Colunas</label>

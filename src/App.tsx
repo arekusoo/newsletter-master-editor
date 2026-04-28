@@ -216,6 +216,8 @@ export default function App() {
         data = {
           ...data,
           columns: cols,
+          widths: Array(cols).fill(100 / cols),
+          gap: 16,
           items: Array(cols).fill(null).map(() => ({
             type: 'empty',
             data: {}
@@ -340,6 +342,28 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-4">
+          {/* Storage Meter */}
+          <div className="flex flex-col items-end gap-1 mr-2 px-3 py-1 bg-slate-50 rounded-lg border border-slate-100">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Uso do Armazenamento</span>
+              <span className={`text-[10px] font-bold ${
+                (encodeURI(JSON.stringify(blocks) + JSON.stringify(settings)).length / 1048576) > 0.8 ? 'text-red-500' : 
+                (encodeURI(JSON.stringify(blocks) + JSON.stringify(settings)).length / 1048576) > 0.5 ? 'text-amber-500' : 'text-emerald-500'
+              }`}>
+                {Math.round((encodeURI(JSON.stringify(blocks) + JSON.stringify(settings)).length / 1048576) * 100)}%
+              </span>
+            </div>
+            <div className="w-32 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+              <div 
+                className={`h-full transition-all duration-500 ${
+                  (encodeURI(JSON.stringify(blocks) + JSON.stringify(settings)).length / 1048576) > 0.8 ? 'bg-red-500' : 
+                  (encodeURI(JSON.stringify(blocks) + JSON.stringify(settings)).length / 1048576) > 0.5 ? 'bg-amber-500' : 'bg-emerald-500'
+                }`}
+                style={{ width: `${Math.min(100, (encodeURI(JSON.stringify(blocks) + JSON.stringify(settings)).length / 1048576) * 100)}%` }}
+              />
+            </div>
+          </div>
+
           <button 
             onClick={() => setIsSaveModalOpen(true)}
             className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 text-emerald-700 rounded-xl font-bold text-sm hover:bg-emerald-100 transition-all active:scale-95 border border-emerald-100"

@@ -172,7 +172,10 @@ export const exportToHtml = (blocks: NewsletterBlock[], settings: NewsletterSett
       }
       case 'column-layout': {
         const d = block.data;
-        const colWidths = d.widths || Array(d.columns).fill(100 / d.columns);
+        const columns = d.columns || 2;
+        const gap = d.gap ?? 16;
+        const colWidths = d.widths || Array(columns).fill(100 / columns);
+        
         const cells = d.items.map((item: any, i: number) => {
           let content = '';
           if (item.type === 'text') {
@@ -224,11 +227,19 @@ export const exportToHtml = (blocks: NewsletterBlock[], settings: NewsletterSett
             content = `<div style="font-size: ${ed.fontSize || 48}px; text-align: ${ed.textAlign || 'center'}; line-height: 1;">${ed.emoji || '😊'}</div>`;
           }
           
-          return `
-            <td width="${colWidths[i]}%" align="center" valign="${item.data.verticalAlign === 'center' ? 'middle' : (item.data.verticalAlign || 'top')}" style="padding: 10px;">
+          const colInnerStyle = `background-color: ${item.backgroundColor || 'transparent'}; border: ${item.borderWidth || 0}px solid ${item.borderColor || 'transparent'}; border-radius: ${item.borderRadius || 0}px;`;
+          
+          let cellHtml = `
+            <td width="${colWidths[i]}%" align="center" valign="${item.data.verticalAlign === 'center' ? 'middle' : (item.data.verticalAlign || 'top')}" style="padding: 10px; ${colInnerStyle}">
               ${content}
             </td>
           `;
+
+          if (i < columns - 1 && gap > 0) {
+            cellHtml += `<td width="${gap}" style="width: ${gap}px; line-height: 1px; font-size: 1px;">&nbsp;</td>`;
+          }
+
+          return cellHtml;
         }).join('');
         
         return `
