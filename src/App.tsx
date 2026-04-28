@@ -328,6 +328,8 @@ export default function App() {
   };
 
   const selectedBlock = blocks.find(b => b.id === selectedBlockId) || null;
+  const dataSize = React.useMemo(() => JSON.stringify(blocks).length, [blocks]);
+  const storagePercentage = Math.min((dataSize / 1048576) * 100, 100);
 
   return (
     <div className="flex flex-col h-screen bg-slate-50 font-sans overflow-hidden">
@@ -347,19 +349,19 @@ export default function App() {
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Uso do Armazenamento</span>
               <span className={`text-[10px] font-bold ${
-                (encodeURI(JSON.stringify(blocks) + JSON.stringify(settings)).length / 1048576) > 0.8 ? 'text-red-500' : 
-                (encodeURI(JSON.stringify(blocks) + JSON.stringify(settings)).length / 1048576) > 0.5 ? 'text-amber-500' : 'text-emerald-500'
+                storagePercentage > 80 ? 'text-red-500' : 
+                storagePercentage > 50 ? 'text-amber-500' : 'text-emerald-500'
               }`}>
-                {Math.round((encodeURI(JSON.stringify(blocks) + JSON.stringify(settings)).length / 1048576) * 100)}%
+                {Math.round(storagePercentage)}%
               </span>
             </div>
             <div className="w-32 h-1.5 bg-slate-200 rounded-full overflow-hidden">
               <div 
                 className={`h-full transition-all duration-500 ${
-                  (encodeURI(JSON.stringify(blocks) + JSON.stringify(settings)).length / 1048576) > 0.8 ? 'bg-red-500' : 
-                  (encodeURI(JSON.stringify(blocks) + JSON.stringify(settings)).length / 1048576) > 0.5 ? 'bg-amber-500' : 'bg-emerald-500'
+                  storagePercentage > 80 ? 'bg-red-500' : 
+                  storagePercentage > 50 ? 'bg-amber-500' : 'bg-emerald-500'
                 }`}
-                style={{ width: `${Math.min(100, (encodeURI(JSON.stringify(blocks) + JSON.stringify(settings)).length / 1048576) * 100)}%` }}
+                style={{ width: `${storagePercentage}%` }}
               />
             </div>
           </div>

@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { NewsletterBlock, NewsletterSettings } from '../types';
 import * as LucideIcons from 'lucide-react';
 import { AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline, Type, Image as ImageIcon, Star, Minus, LayoutGrid, Settings2, MousePointer2, Upload, ArrowUp, ArrowDown, Smile, Sparkles, Loader2, Link as LinkIcon, RefreshCw, Maximize2, Square, Circle, Trash2 } from 'lucide-react';
-import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
+import { LazyEmojiPicker } from './LazyEmojiPicker';
 import { GoogleGenAI } from "@google/genai";
 
 interface PropertiesPanelProps {
@@ -583,21 +583,11 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                     {selectedBlock.data.emoji || '😊'}
                   </button>
                   
-                  {emojiPickerTarget === 'main' && (
-                    <div className="absolute left-0 right-0 z-50 mt-2 shadow-2xl rounded-xl overflow-hidden border border-slate-200">
-                      <EmojiPicker 
-                        onEmojiClick={(emojiData: EmojiClickData) => {
-                          updateData({ emoji: emojiData.emoji });
-                          setEmojiPickerTarget(null);
-                        }}
-                        width="100%"
-                        height={350}
-                        previewConfig={{ showPreview: false }}
-                        skinTonesDisabled
-                        searchPlaceHolder="Procurar emoji..."
-                      />
-                    </div>
-                  )}
+                  <LazyEmojiPicker
+                    isOpen={emojiPickerTarget === 'main'}
+                    onClose={() => setEmojiPickerTarget(null)}
+                    onEmojiClick={(emojiData) => updateData({ emoji: emojiData.emoji })}
+                  />
                 </div>
                 <p className="text-[10px] text-slate-400 mt-2 text-center">Clique no emoji para trocar</p>
               </div>
@@ -1021,9 +1011,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                           <textarea
                             value={item.data.content}
                             onChange={(e) => {
-                              const newItems = [...selectedBlock.data.items];
-                              newItems[i].data = { ...newItems[i].data, content: e.target.value };
-                              updateData({ items: newItems });
+                              onUpdateBlock(selectedBlock.id, { ...item.data, content: e.target.value }, undefined, i);
                             }}
                             className="w-full p-3 border border-slate-200 rounded-xl text-sm h-24 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                             placeholder="Texto da coluna..."
@@ -1037,11 +1025,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                               {['left', 'center', 'right'].map(a => (
                                 <button
                                   key={a}
-                                  onClick={() => {
-                                    const newItems = [...selectedBlock.data.items];
-                                    newItems[i].data = { ...newItems[i].data, textAlign: a };
-                                    updateData({ items: newItems });
-                                  }}
+                                  onClick={() => onUpdateBlock(selectedBlock.id, { textAlign: a }, undefined, i)}
                                   className={`flex-1 py-1.5 rounded-md transition-all ${item.data.textAlign === a ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                                 >
                                   {a === 'left' ? <AlignLeft size={14} className="mx-auto" /> : a === 'center' ? <AlignCenter size={14} className="mx-auto" /> : <AlignRight size={14} className="mx-auto" />}
@@ -1054,21 +1038,13 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Estilo</label>
                             <div className="flex gap-1 bg-slate-50 p-1 rounded-lg border border-slate-200">
                               <button
-                                onClick={() => {
-                                  const newItems = [...selectedBlock.data.items];
-                                  newItems[i].data = { ...newItems[i].data, fontWeight: item.data.fontWeight === 'bold' ? 'normal' : 'bold' };
-                                  updateData({ items: newItems });
-                                }}
+                                onClick={() => onUpdateBlock(selectedBlock.id, { fontWeight: item.data.fontWeight === 'bold' ? 'normal' : 'bold' }, undefined, i)}
                                 className={`flex-1 py-1.5 rounded-md transition-all ${item.data.fontWeight === 'bold' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                               >
                                 <Bold size={14} className="mx-auto" />
                               </button>
                               <button
-                                onClick={() => {
-                                  const newItems = [...selectedBlock.data.items];
-                                  newItems[i].data = { ...newItems[i].data, fontStyle: item.data.fontStyle === 'italic' ? 'normal' : 'italic' };
-                                  updateData({ items: newItems });
-                                }}
+                                onClick={() => onUpdateBlock(selectedBlock.id, { fontStyle: item.data.fontStyle === 'italic' ? 'normal' : 'italic' }, undefined, i)}
                                 className={`flex-1 py-1.5 rounded-md transition-all ${item.data.fontStyle === 'italic' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                               >
                                 <Italic size={14} className="mx-auto" />
@@ -1085,11 +1061,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                               <input
                                 type="number"
                                 value={item.data.fontSize || 14}
-                                onChange={(e) => {
-                                  const newItems = [...selectedBlock.data.items];
-                                  newItems[i].data = { ...newItems[i].data, fontSize: parseInt(e.target.value) || 14 };
-                                  updateData({ items: newItems });
-                                }}
+                                onChange={(e) => onUpdateBlock(selectedBlock.id, { fontSize: parseInt(e.target.value) || 14 }, undefined, i)}
                                 className="w-full bg-transparent text-sm font-medium text-slate-700 outline-none"
                               />
                             </div>
@@ -1101,11 +1073,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                               <input
                                 type="color"
                                 value={item.data.color || '#334155'}
-                                onChange={(e) => {
-                                  const newItems = [...selectedBlock.data.items];
-                                  newItems[i].data = { ...newItems[i].data, color: e.target.value };
-                                  updateData({ items: newItems });
-                                }}
+                                onChange={(e) => onUpdateBlock(selectedBlock.id, { color: e.target.value }, undefined, i)}
                                 className="w-8 h-8 rounded-lg cursor-pointer border-none p-0 bg-transparent"
                               />
                               <span className="text-xs font-mono text-slate-500 uppercase">{item.data.color || '#334155'}</span>
@@ -1123,11 +1091,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                             <input
                               type="text"
                               value={item.data.url}
-                              onChange={(e) => {
-                                const newItems = [...selectedBlock.data.items];
-                                newItems[i].data = { ...newItems[i].data, url: e.target.value };
-                                updateData({ items: newItems });
-                              }}
+                              onChange={(e) => onUpdateBlock(selectedBlock.id, { url: e.target.value }, undefined, i)}
                               className="flex-1 p-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                               placeholder="https://..."
                             />
@@ -1142,9 +1106,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                                   if (file) {
                                     const reader = new FileReader();
                                     reader.onloadend = () => {
-                                      const newItems = [...selectedBlock.data.items];
-                                      newItems[i].data = { ...newItems[i].data, url: reader.result as string };
-                                      updateData({ items: newItems });
+                                      onUpdateBlock(selectedBlock.id, { url: reader.result as string }, undefined, i);
                                     };
                                     reader.readAsDataURL(file);
                                   }
@@ -1161,11 +1123,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                             <input
                               type="text"
                               value={item.data.linkUrl || ''}
-                              onChange={(e) => {
-                                const newItems = [...selectedBlock.data.items];
-                                newItems[i].data = { ...newItems[i].data, linkUrl: e.target.value };
-                                updateData({ items: newItems });
-                              }}
+                              onChange={(e) => onUpdateBlock(selectedBlock.id, { linkUrl: e.target.value }, undefined, i)}
                               className="w-full bg-transparent text-xs outline-none"
                               placeholder="https://..."
                             />
@@ -1183,11 +1141,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                               min="10"
                               max="100"
                               value={item.data.width || 100}
-                              onChange={(e) => {
-                                const newItems = [...selectedBlock.data.items];
-                                newItems[i].data = { ...newItems[i].data, width: parseInt(e.target.value) };
-                                updateData({ items: newItems });
-                              }}
+                              onChange={(e) => onUpdateBlock(selectedBlock.id, { width: parseInt(e.target.value) }, undefined, i)}
                               className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
                             />
                           </div>
@@ -1203,11 +1157,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                               max="500"
                               step="10"
                               value={item.data.height || 0}
-                              onChange={(e) => {
-                                const newItems = [...selectedBlock.data.items];
-                                newItems[i].data = { ...newItems[i].data, height: parseInt(e.target.value) || undefined };
-                                updateData({ items: newItems });
-                              }}
+                              onChange={(e) => onUpdateBlock(selectedBlock.id, { height: parseInt(e.target.value) || undefined }, undefined, i)}
                               className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
                             />
                           </div>
@@ -1224,11 +1174,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                               min="0"
                               max="50"
                               value={item.data.borderRadius || 0}
-                              onChange={(e) => {
-                                const newItems = [...selectedBlock.data.items];
-                                newItems[i].data = { ...newItems[i].data, borderRadius: parseInt(e.target.value) };
-                                updateData({ items: newItems });
-                              }}
+                              onChange={(e) => onUpdateBlock(selectedBlock.id, { borderRadius: parseInt(e.target.value) }, undefined, i)}
                               className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
                             />
                           </div>
@@ -1244,11 +1190,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                             {(['button', 'link'] as const).map((v) => (
                               <button
                                 key={v}
-                                onClick={() => {
-                                  const newItems = [...selectedBlock.data.items];
-                                  newItems[i].data = { ...newItems[i].data, variant: v };
-                                  updateData({ items: newItems });
-                                }}
+                                onClick={() => onUpdateBlock(selectedBlock.id, { variant: v }, undefined, i)}
                                 className={`flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all capitalize ${
                                   (item.data.variant || 'button') === v ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'
                                 }`}
@@ -1277,22 +1219,14 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                             <div className="flex gap-1">
                               {item.data.iconName && (
                                 <button
-                                  onClick={() => {
-                                    const newItems = [...selectedBlock.data.items];
-                                    newItems[i].data = { ...newItems[i].data, iconName: undefined };
-                                    updateData({ items: newItems });
-                                  }}
+                                  onClick={() => onUpdateBlock(selectedBlock.id, { iconName: undefined }, undefined, i)}
                                   className="p-1.5 bg-white hover:bg-red-50 text-red-500 rounded-lg border border-slate-200 transition-all shadow-sm"
                                 >
                                   <Trash2 size={12} />
                                 </button>
                               )}
                               <button
-                                onClick={() => onOpenIconPicker((iconName) => {
-                                  const newItems = [...selectedBlock.data.items];
-                                  newItems[i].data = { ...newItems[i].data, iconName };
-                                  updateData({ items: newItems });
-                                })}
+                                onClick={() => onOpenIconPicker((iconName) => onUpdateBlock(selectedBlock.id, { iconName }, undefined, i))}
                                 className="p-1.5 bg-white hover:bg-slate-50 text-blue-600 rounded-lg border border-slate-200 transition-all shadow-sm"
                               >
                                 <RefreshCw size={12} />
@@ -1310,11 +1244,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                                 min="0"
                                 max="20"
                                 value={item.data.iconGap || 6}
-                                onChange={(e) => {
-                                  const newItems = [...selectedBlock.data.items];
-                                  newItems[i].data = { ...newItems[i].data, iconGap: parseInt(e.target.value) };
-                                  updateData({ items: newItems });
-                                }}
+                                onChange={(e) => onUpdateBlock(selectedBlock.id, { iconGap: parseInt(e.target.value) }, undefined, i)}
                                 className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
                               />
                             </div>
@@ -1326,11 +1256,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                           <input
                             type="text"
                             value={item.data.text}
-                            onChange={(e) => {
-                              const newItems = [...selectedBlock.data.items];
-                              newItems[i].data = { ...newItems[i].data, text: e.target.value };
-                              updateData({ items: newItems });
-                            }}
+                            onChange={(e) => onUpdateBlock(selectedBlock.id, { text: e.target.value }, undefined, i)}
                             className="w-full p-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                             placeholder="Texto..."
                           />
@@ -1341,11 +1267,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                           <input
                             type="text"
                             value={item.data.url}
-                            onChange={(e) => {
-                              const newItems = [...selectedBlock.data.items];
-                              newItems[i].data = { ...newItems[i].data, url: e.target.value };
-                              updateData({ items: newItems });
-                            }}
+                            onChange={(e) => onUpdateBlock(selectedBlock.id, { url: e.target.value }, undefined, i)}
                             className="w-full p-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                             placeholder="https://..."
                           />
@@ -1358,11 +1280,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                               <input
                                 type="color"
                                 value={item.data.backgroundColor || '#3b82f6'}
-                                onChange={(e) => {
-                                  const newItems = [...selectedBlock.data.items];
-                                  newItems[i].data = { ...newItems[i].data, backgroundColor: e.target.value };
-                                  updateData({ items: newItems });
-                                }}
+                                onChange={(e) => onUpdateBlock(selectedBlock.id, { backgroundColor: e.target.value }, undefined, i)}
                                 className="w-8 h-8 rounded-lg cursor-pointer border-none p-0 bg-transparent"
                               />
                               <span className="text-xs font-mono text-slate-500 uppercase">{item.data.backgroundColor || '#3b82f6'}</span>
@@ -1375,11 +1293,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                               <input
                                 type="color"
                                 value={item.data.color || '#ffffff'}
-                                onChange={(e) => {
-                                  const newItems = [...selectedBlock.data.items];
-                                  newItems[i].data = { ...newItems[i].data, color: e.target.value };
-                                  updateData({ items: newItems });
-                                }}
+                                onChange={(e) => onUpdateBlock(selectedBlock.id, { color: e.target.value }, undefined, i)}
                                 className="w-8 h-8 rounded-lg cursor-pointer border-none p-0 bg-transparent"
                               />
                               <span className="text-xs font-mono text-slate-500 uppercase">{item.data.color || '#ffffff'}</span>
@@ -1394,11 +1308,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                               {['left', 'center', 'right'].map(a => (
                                 <button
                                   key={a}
-                                  onClick={() => {
-                                    const newItems = [...selectedBlock.data.items];
-                                    newItems[i].data = { ...newItems[i].data, textAlign: a };
-                                    updateData({ items: newItems });
-                                  }}
+                                  onClick={() => onUpdateBlock(selectedBlock.id, { textAlign: a }, undefined, i)}
                                   className={`flex-1 py-1.5 rounded-md transition-all ${item.data.textAlign === a ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                                 >
                                   {a === 'left' ? <AlignLeft size={14} className="mx-auto" /> : a === 'center' ? <AlignCenter size={14} className="mx-auto" /> : <AlignRight size={14} className="mx-auto" />}
@@ -1413,11 +1323,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                               <input
                                 type="number"
                                 value={item.data.borderRadius || 4}
-                                onChange={(e) => {
-                                  const newItems = [...selectedBlock.data.items];
-                                  newItems[i].data = { ...newItems[i].data, borderRadius: parseInt(e.target.value) || 0 };
-                                  updateData({ items: newItems });
-                                }}
+                                onChange={(e) => onUpdateBlock(selectedBlock.id, { borderRadius: parseInt(e.target.value) || 0 }, undefined, i)}
                                 className="w-full bg-transparent text-sm font-medium text-slate-700 outline-none"
                               />
                             </div>
@@ -1427,11 +1333,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                         <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-200">
                           <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Largura Total</label>
                           <button
-                            onClick={() => {
-                              const newItems = [...selectedBlock.data.items];
-                              newItems[i].data = { ...newItems[i].data, fullWidth: !item.data.fullWidth };
-                              updateData({ items: newItems });
-                            }}
+                            onClick={() => onUpdateBlock(selectedBlock.id, { fullWidth: !item.data.fullWidth }, undefined, i)}
                             className={`w-10 h-5 rounded-full transition-all relative ${item.data.fullWidth ? 'bg-blue-600' : 'bg-slate-200'}`}
                           >
                             <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${item.data.fullWidth ? 'left-6' : 'left-1'}`} />
@@ -1445,11 +1347,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                         <div className="space-y-2">
                           <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ícone</label>
                           <button
-                            onClick={() => onOpenIconPicker((iconName) => {
-                              const newItems = [...selectedBlock.data.items];
-                              newItems[i].data = { ...newItems[i].data, iconName };
-                              updateData({ items: newItems });
-                            })}
+                            onClick={() => onOpenIconPicker((iconName) => onUpdateBlock(selectedBlock.id, { iconName }, undefined, i))}
                             className="w-full py-3 px-4 bg-blue-600 text-white rounded-xl font-bold text-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
                           >
                             <span className="material-symbols-outlined text-lg">{item.data.iconName || 'star'}</span>
@@ -1464,11 +1362,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                               <input
                                 type="color"
                                 value={item.data.color || '#3b82f6'}
-                                onChange={(e) => {
-                                  const newItems = [...selectedBlock.data.items];
-                                  newItems[i].data = { ...newItems[i].data, color: e.target.value };
-                                  updateData({ items: newItems });
-                                }}
+                                onChange={(e) => onUpdateBlock(selectedBlock.id, { color: e.target.value }, undefined, i)}
                                 className="w-8 h-8 rounded-lg cursor-pointer border-none p-0 bg-transparent"
                               />
                               <span className="text-xs font-mono text-slate-500 uppercase">{item.data.color || '#3b82f6'}</span>
@@ -1483,11 +1377,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                               {['small', 'medium', 'large'].map(s => (
                                 <button
                                   key={s}
-                                  onClick={() => {
-                                    const newItems = [...selectedBlock.data.items];
-                                    newItems[i].data = { ...newItems[i].data, size: s };
-                                    updateData({ items: newItems });
-                                  }}
+                                  onClick={() => onUpdateBlock(selectedBlock.id, { size: s }, undefined, i)}
                                   className={`flex-1 py-2 text-xs font-bold rounded-xl border transition-all ${
                                     (item.data.size || 'medium') === s ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'
                                   }`}
@@ -1513,23 +1403,11 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                               {item.data.emoji || '😊'}
                             </button>
                             
-                            {emojiPickerTarget === i && (
-                              <div className="absolute left-0 right-0 z-50 mt-2 shadow-2xl rounded-xl overflow-hidden border border-slate-200">
-                                <EmojiPicker 
-                                  onEmojiClick={(emojiData: EmojiClickData) => {
-                                    const newItems = [...selectedBlock.data.items];
-                                    newItems[i].data = { ...newItems[i].data, emoji: emojiData.emoji };
-                                    updateData({ items: newItems });
-                                    setEmojiPickerTarget(null);
-                                  }}
-                                  width="100%"
-                                  height={300}
-                                  previewConfig={{ showPreview: false }}
-                                  skinTonesDisabled
-                                  searchPlaceHolder="Procurar..."
-                                />
-                              </div>
-                            )}
+                            <LazyEmojiPicker
+                              isOpen={emojiPickerTarget === i}
+                              onClose={() => setEmojiPickerTarget(null)}
+                              onEmojiClick={(emojiData) => onUpdateBlock(selectedBlock.id, { emoji: emojiData.emoji }, undefined, i)}
+                            />
                           </div>
                         </div>
                         
@@ -1543,11 +1421,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                             min="12"
                             max="120"
                             value={item.data.fontSize || 48}
-                            onChange={(e) => {
-                              const newItems = [...selectedBlock.data.items];
-                              newItems[i].data = { ...newItems[i].data, fontSize: parseInt(e.target.value) };
-                              updateData({ items: newItems });
-                            }}
+                            onChange={(e) => onUpdateBlock(selectedBlock.id, { fontSize: parseInt(e.target.value) }, undefined, i)}
                             className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
                           />
                         </div>
@@ -1558,11 +1432,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                             {(['left', 'center', 'right'] as const).map((align) => (
                               <button
                                 key={align}
-                                onClick={() => {
-                                  const newItems = [...selectedBlock.data.items];
-                                  newItems[i].data = { ...newItems[i].data, textAlign: align };
-                                  updateData({ items: newItems });
-                                }}
+                                onClick={() => onUpdateBlock(selectedBlock.id, { textAlign: align }, undefined, i)}
                                 className={`flex-1 flex justify-center py-2 rounded-lg transition-all ${
                                   item.data.textAlign === align ? 'bg-white shadow-sm text-blue-600' : 'text-slate-400 hover:text-slate-600'
                                 }`}
@@ -1585,11 +1455,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                             <input
                               type="color"
                               value={item.data.color || '#e2e8f0'}
-                              onChange={(e) => {
-                                const newItems = [...selectedBlock.data.items];
-                                newItems[i].data = { ...newItems[i].data, color: e.target.value };
-                                updateData({ items: newItems });
-                              }}
+                              onChange={(e) => onUpdateBlock(selectedBlock.id, { color: e.target.value }, undefined, i)}
                               className="w-8 h-8 rounded-lg cursor-pointer border-none p-0 bg-transparent"
                             />
                             <span className="text-xs font-mono text-slate-500 uppercase">{item.data.color || '#e2e8f0'}</span>
@@ -1604,11 +1470,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                               <input
                                 type="number"
                                 value={item.data.height || 1}
-                                onChange={(e) => {
-                                  const newItems = [...selectedBlock.data.items];
-                                  newItems[i].data = { ...newItems[i].data, height: parseInt(e.target.value) || 1 };
-                                  updateData({ items: newItems });
-                                }}
+                                onChange={(e) => onUpdateBlock(selectedBlock.id, { height: parseInt(e.target.value) || 1 }, undefined, i)}
                                 className="w-full bg-transparent text-sm font-medium text-slate-700 outline-none"
                               />
                             </div>
@@ -1621,11 +1483,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                               <input
                                 type="number"
                                 value={item.data.margin || 16}
-                                onChange={(e) => {
-                                  const newItems = [...selectedBlock.data.items];
-                                  newItems[i].data = { ...newItems[i].data, margin: parseInt(e.target.value) || 0 };
-                                  updateData({ items: newItems });
-                                }}
+                                onChange={(e) => onUpdateBlock(selectedBlock.id, { margin: parseInt(e.target.value) || 0 }, undefined, i)}
                                 className="w-full bg-transparent text-sm font-medium text-slate-700 outline-none"
                               />
                             </div>
@@ -1641,11 +1499,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                           {(['top', 'center', 'bottom'] as const).map((align) => (
                             <button
                               key={align}
-                              onClick={() => {
-                                const newItems = [...selectedBlock.data.items];
-                                newItems[i].data = { ...newItems[i].data, verticalAlign: align };
-                                updateData({ items: newItems });
-                              }}
+                                onClick={() => onUpdateBlock(selectedBlock.id, { verticalAlign: align }, undefined, i)}
                               className={`flex-1 flex justify-center py-2 rounded-lg transition-all ${
                                 (item.data.verticalAlign || 'top') === align ? 'bg-white shadow-sm text-blue-600' : 'text-slate-400 hover:text-slate-600'
                               }`}
@@ -1664,7 +1518,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                         onClick={() => {
                           const newItems = [...selectedBlock.data.items];
                           newItems[i] = { type: 'empty', data: {} };
-                          updateData({ items: newItems });
+                          onUpdateBlock(selectedBlock.id, { items: newItems });
                         }}
                         className="mt-2 w-full py-1 text-[10px] text-red-500 font-bold hover:bg-red-50 rounded transition-colors"
                       >

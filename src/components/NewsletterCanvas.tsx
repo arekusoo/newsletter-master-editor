@@ -75,14 +75,14 @@ const NewsletterCanvas: React.FC<NewsletterCanvasProps> = ({
 
     const block = blocks.find(b => b.id === blockId);
     if (block && block.type === 'column-layout') {
-      const newData = { ...block.data };
+      const newItems = [...block.data.items];
       const defaultData = getDefaultDataForType(type);
       
-      newData.items[index] = {
+      newItems[index] = {
         type: type as any,
         data: defaultData
       };
-      onUpdateBlock(blockId, newData);
+      onUpdateBlock(blockId, { ...block.data, items: newItems });
     }
   };
 
