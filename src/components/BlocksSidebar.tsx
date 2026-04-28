@@ -87,21 +87,31 @@ const BlocksSidebar: React.FC<BlocksSidebarProps> = ({
       - column-layout: { columns: 2|3, items: [{ type, data }] }
       
       Importante: Gere IDs únicos usando Math.random().toString(36).substr(2, 9).
-      Retorne APENAS o array JSON puro, sem blocos de código markdown.`;
+      Retorne APENAS o array JSON puro.`;
 
       const result = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
-        contents: [{ text: `${systemPrompt}\n\nPedido do usuário: ${aiPrompt}` }]
+        contents: `${systemPrompt}\n\nPedido do usuário: ${aiPrompt}`,
+        config: {
+          responseMimeType: "application/json"
+        }
       });
       
-      const text = result.text || '';
+      const text = result.text;
       if (!text) {
         throw new Error('A IA não retornou conteúdo.');
       }
       
-      // Clean up potential markdown
-      const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
-      const generatedBlocks = JSON.parse(jsonStr);
+      // Robust JSON extraction
+      let generatedBlocks;
+      try {
+        const match = text.match(/\[[\s\S]*\]/);
+        const jsonStr = match ? match[0] : text;
+        generatedBlocks = JSON.parse(jsonStr);
+      } catch (e) {
+        console.error('Failed to parse AI JSON:', text);
+        throw new Error('A resposta da IA não está em um formato JSON válido.');
+      }
       
       if (Array.isArray(generatedBlocks)) {
         onAddAIGeneratedBlocks(generatedBlocks);
