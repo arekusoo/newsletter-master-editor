@@ -12,7 +12,7 @@ interface NewsletterCanvasProps {
   onMoveBlock: (id: string, direction: 'up' | 'down') => void;
   onDuplicateBlock: (id: string) => void;
   onAddBlock: (type: string, data?: any) => void;
-  onUpdateBlock: (id: string, data: any, topLevelProps?: any, subIndex?: number | null) => void;
+  onUpdateBlock: (id: string, data: any, topLevelProps?: any, subIndex?: number | null, noSnapshot?: boolean) => void;
   backgroundColor: string;
   contentBackgroundColor: string;
   fontFamily: string;
@@ -549,6 +549,7 @@ const NewsletterCanvas: React.FC<NewsletterCanvasProps> = ({
                             }}
                             onMouseDown={(e) => {
                               e.preventDefault();
+                              onUpdateBlock(block.id, {}, {}, null, false); // Take snapshot before starting resize
                               const startX = e.clientX;
                               const currentWidths = block.data.widths || Array(block.data.columns).fill(100 / block.data.columns);
                               const initialWidthLeft = currentWidths[i];
@@ -573,7 +574,7 @@ const NewsletterCanvas: React.FC<NewsletterCanvasProps> = ({
                                   newWidths[i+1] = targetSum - newWidths[i];
                                 }
 
-                                onUpdateBlock(block.id, { ...block.data, widths: newWidths });
+                                onUpdateBlock(block.id, { ...block.data, widths: newWidths }, {}, null, true);
                               };
 
                               const onMouseUp = () => {

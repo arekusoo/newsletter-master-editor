@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Download, Layout as LayoutIcon, Laptop, Smartphone, Eye, X, Search, Trash2, Edit2, Plus, CheckCircle2, Bookmark, Link } from 'lucide-react';
+import { Download, Layout as LayoutIcon, Laptop, Smartphone, Eye, X, Search, Trash2, Edit2, Plus, CheckCircle2, Bookmark, Link, Undo2, Redo2 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import { NewsletterBlock, NewsletterSettings, BlockType, Preset } from './types';
 import BlocksSidebar from './components/BlocksSidebar';
@@ -32,6 +32,7 @@ export default function App() {
   const [isConfirmLoadOpen, setIsConfirmLoadOpen] = useState(false);
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
   const [isHowToUseOpen, setIsHowToUseOpen] = useState(false);
+  const [history, setHistory] = useState<{ past: { blocks: NewsletterBlock[], settings: NewsletterSettings }[], future: { blocks: NewsletterBlock[], settings: NewsletterSettings }[] }>({ past: [], future: [] });
   const [activePreset, setActivePreset] = useState<Preset | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -105,6 +106,7 @@ export default function App() {
   };
 
   const applyPreset = (preset: Preset) => {
+    takeSnapshot();
     setBlocks(JSON.parse(JSON.stringify(preset.blocks)));
     setSettings({ ...preset.settings });
     setSelectedBlockId(null);
@@ -167,6 +169,7 @@ export default function App() {
   };
 
   const addBlock = (type: string, customData?: any) => {
+    takeSnapshot();
     const id = Math.random().toString(36).substr(2, 9);
     let data: any = {
       paddingTop: 0,
@@ -256,8 +259,68 @@ export default function App() {
     setSelectedBlockId(id);
   };
 
+  const takeSnapshot = () => {
+    setHistory(prev => ({
+      past: [...prev.past.slice(-49), { blocks: JSON.parse(JSON.stringify(blocks)), settings: JSON.parse(JSON.stringify(settings)) }],
+      future: []
+    }));
+  };
+
+  const undo = () => {
+    if (history.past.length === 0) return;
+    const previous = history.past[history.past.length - 1];
+    const newPast = history.past.slice(0, history.past.length - 1);
+    
+    setHistory({
+      past: newPast,
+      future: [{ blocks: JSON.parse(JSON.stringify(blocks)), settings: JSON.parse(JSON.stringify(settings)) }, ...history.future]
+    });
+    
+    setBlocks(previous.blocks);
+    setSettings(previous.settings);
+    toast.info('Ação desfeita');
+  };
+
+  const redo = () => {
+    if (history.future.length === 0) return;
+    const next = history.future[0];
+    const newFuture = history.future.slice(1);
+    
+    setHistory({
+      past: [...history.past, { blocks: JSON.parse(JSON.stringify(blocks)), settings: JSON.parse(JSON.stringify(settings)) }],
+      future: newFuture
+    });
+    
+    setBlocks(next.blocks);
+    setSettings(next.settings);
+    toast.info('Ação refeita');
+  };
+
+  // Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        if (e.shiftKey) {
+          redo();
+        } else {
+          undo();
+        }
+        e.preventDefault();
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+        redo();
+        e.preventDefault();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [history, blocks, settings]);
+
   const updateBlock = (id: string, data: any, topLevelProps?: Partial<NewsletterBlock>, subIndex?: number | null) => {
     const targetSubIndex = subIndex !== undefined ? subIndex : selectedSubBlockIndex;
+    
+    // Simple logic to avoid flooding history with every character
+    // We could use a ref to track the last snapshot time
     setBlocks(prevBlocks => prevBlocks.map(b => {
       if (b.id === id) {
         // If we are updating a sub-block inside a layout
@@ -281,6 +344,7 @@ export default function App() {
   };
 
   const duplicateBlock = (id: string) => {
+    takeSnapshot();
     const index = blocks.findIndex(b => b.id === id);
     if (index === -1) return;
     
@@ -299,11 +363,13 @@ export default function App() {
   };
 
   const deleteBlock = (id: string) => {
+    takeSnapshot();
     setBlocks(blocks.filter(b => b.id !== id));
     if (selectedBlockId === id) setSelectedBlockId(null);
   };
 
   const moveBlock = (id: string, direction: 'up' | 'down') => {
+    takeSnapshot();
     const index = blocks.findIndex(b => b.id === id);
     if (index === -1) return;
     
@@ -344,6 +410,26 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-4">
+          {/* Undo/Redo Controls */}
+          <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-xl border border-slate-200 mr-2">
+            <button
+              onClick={undo}
+              disabled={history.past.length === 0}
+              className="p-2 text-slate-500 hover:text-blue-600 hover:bg-white rounded-lg transition-all disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-500"
+              title="Desfazer (Ctrl+Z)"
+            >
+              <Undo2 size={18} />
+            </button>
+            <button
+              onClick={redo}
+              disabled={history.future.length === 0}
+              className="p-2 text-slate-500 hover:text-blue-600 hover:bg-white rounded-lg transition-all disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-500"
+              title="Refazer (Ctrl+Shift+Z)"
+            >
+              <Redo2 size={18} />
+            </button>
+          </div>
+
           {/* Storage Meter */}
           <div className="flex flex-col items-end gap-1 mr-2 px-3 py-1 bg-slate-50 rounded-lg border border-slate-100">
             <div className="flex items-center gap-2">
@@ -417,7 +503,10 @@ export default function App() {
             onMoveBlock={moveBlock}
             onDuplicateBlock={duplicateBlock}
             onAddBlock={addBlock}
-            onUpdateBlock={updateBlock}
+            onUpdateBlock={(id, data, topLevel, sub, noSnapshot) => {
+              if (!noSnapshot) takeSnapshot();
+              updateBlock(id, data, topLevel, sub);
+            }}
             backgroundColor={settings.backgroundColor}
             contentBackgroundColor={settings.contentBackgroundColor}
             fontFamily={settings.fontFamily}
@@ -428,9 +517,20 @@ export default function App() {
         <PropertiesPanel
           selectedBlock={selectedBlock}
           selectedSubBlockIndex={selectedSubBlockIndex}
-          onUpdateBlock={updateBlock}
+          onUpdateBlock={(id, data, topLevel, sub) => {
+            // Trigger snapshot on significant updates or when called from panel
+            // For text fields we might want to be careful, but the current panel
+            // is mostly select/color/toggle which should all be undoable
+            // I'll add a flag or just take snapshot for non-text updates?
+            // Actually, let's just take snapshot for now to ensure reliability
+            takeSnapshot();
+            updateBlock(id, data, topLevel, sub);
+          }}
           settings={settings}
-          onUpdateSettings={(s) => setSettings({ ...settings, ...s })}
+          onUpdateSettings={(s) => {
+            takeSnapshot();
+            setSettings({ ...settings, ...s });
+          }}
           onOpenIconPicker={(callback) => {
             setIconPickerCallback(() => callback);
             setIsIconPickerOpen(true);
