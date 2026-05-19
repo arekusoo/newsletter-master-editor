@@ -47,6 +47,11 @@ service cloud.firestore {
       allow read, create, update, delete: if true;
     }
 
+    match /images/{imageId} {
+      // Publicly readable for email rendering and allows any write operation
+      allow read, write: if true;
+    }
+
     match /users/{userId} {
       allow read: if isAuthenticated();
       allow write: if isOwner(userId) || isAdmin();

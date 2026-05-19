@@ -16,7 +16,7 @@ import ConfirmModal from './components/ConfirmModal';
 import HowToUseModal from './components/HowToUseModal';
 import { exportToHtml } from './exportHtml';
 import { db, auth, handleFirestoreError, OperationType } from './firebase';
-import { collection, onSnapshot, query, orderBy, setDoc, doc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, setDoc, addDoc, doc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 
 export default function App() {
   const [blocks, setBlocks] = useState<NewsletterBlock[]>([]);
@@ -316,11 +316,39 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [history, blocks, settings]);
 
+  const cleanImageUrl = (url: string) => {
+    if (!url || typeof url !== 'string') return url;
+    
+    // Google Drive share link conversion
+    // Pattern: https://drive.google.com/file/d/FILE_ID/view?usp=sharing
+    if (url.includes('drive.google.com/file/d/')) {
+      const match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+      if (match && match[1]) {
+        return `https://lh3.googleusercontent.com/u/0/d/${match[1]}`;
+      }
+    }
+    
+    // Google Drive direct download link conversion: https://drive.google.com/uc?export=download&id=FILE_ID
+    if (url.includes('drive.google.com/uc?')) {
+      const match = url.match(/id=([a-zA-Z0-9_-]+)/);
+      if (match && match[1]) {
+        return `https://lh3.googleusercontent.com/u/0/d/${match[1]}`;
+      }
+    }
+
+    return url;
+  };
+
   const updateBlock = (id: string, data: any, topLevelProps?: Partial<NewsletterBlock>, subIndex?: number | null) => {
     const targetSubIndex = subIndex !== undefined ? subIndex : selectedSubBlockIndex;
     
+    // Process image URLs
+    const processedData = { ...data };
+    if (processedData.url) {
+      processedData.url = cleanImageUrl(processedData.url);
+    }
+
     // Simple logic to avoid flooding history with every character
-    // We could use a ref to track the last snapshot time
     setBlocks(prevBlocks => prevBlocks.map(b => {
       if (b.id === id) {
         // If we are updating a sub-block inside a layout
@@ -331,13 +359,13 @@ export default function App() {
           
           newItems[targetSubIndex] = {
             ...currentItem,
-            data: { ...currentItem.data, ...data },
+            data: { ...currentItem.data, ...processedData },
             ...topLevelProps
           };
           
           return { ...b, data: { ...b.data, items: newItems } };
         }
-        return { ...b, data: { ...b.data, ...data }, ...topLevelProps };
+        return { ...b, data: { ...b.data, ...processedData }, ...topLevelProps };
       }
       return b;
     }));

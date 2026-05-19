@@ -2,7 +2,7 @@ import React from 'react';
 import { toast } from 'sonner';
 import { NewsletterBlock, NewsletterSettings } from '../types';
 import * as LucideIcons from 'lucide-react';
-import { AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline, Type, Image as ImageIcon, Star, Minus, LayoutGrid, Settings2, MousePointer2, Upload, ArrowUp, ArrowDown, Smile, Sparkles, Loader2, Link as LinkIcon, RefreshCw, Maximize2, Square, Circle, Trash2 } from 'lucide-react';
+import { AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline, Type, Image as ImageIcon, Star, Minus, LayoutGrid, Settings2, MousePointer2, ArrowUp, ArrowDown, Smile, Sparkles, Loader2, Link as LinkIcon, RefreshCw, Maximize2, Square, Circle, Trash2 } from 'lucide-react';
 import { LazyEmojiPicker } from './LazyEmojiPicker';
 import { GoogleGenAI } from "@google/genai";
 
@@ -21,7 +21,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   onUpdateBlock,
   settings,
   onUpdateSettings,
-  onOpenIconPicker
+  onOpenIconPicker,
 }) => {
   const [emojiPickerTarget, setEmojiPickerTarget] = React.useState<'main' | number | null>(null);
 
@@ -364,68 +364,9 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
             <section>
               <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Imagem</label>
               <div className="space-y-3">
-                <button 
-                  onClick={() => {
-                    const input = document.createElement('input');
-                    input.type = 'file';
-                    input.accept = 'image/*';
-                    input.onchange = (e: any) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        const reader = new FileReader();
-                        reader.onload = (re) => {
-                          const img = new Image();
-                          img.onload = () => {
-                            const canvas = document.createElement('canvas');
-                            let width = img.width;
-                            let height = img.height;
-                            
-                            // Max dimension 800px
-                            const max_size = 800;
-                            if (width > height) {
-                              if (width > max_size) {
-                                height *= max_size / width;
-                                width = max_size;
-                              }
-                            } else {
-                              if (height > max_size) {
-                                width *= max_size / height;
-                                height = max_size;
-                              }
-                            }
-                            
-                            canvas.width = width;
-                            canvas.height = height;
-                            const ctx = canvas.getContext('2d');
-                            ctx?.drawImage(img, 0, 0, width, height);
-                            
-                            // Compress as JPEG with 0.7 quality
-                            const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
-                            
-                            // Check if still too large (e.g. > 400KB)
-                            if (compressedDataUrl.length > 400000) {
-                              toast.warning('A imagem ainda está grande.', {
-                                description: 'Tamanho reduzido automaticamente, mas considere usar um link externo para economizar espaço.'
-                              });
-                            }
-                            
-                            updateData({ url: compressedDataUrl });
-                          };
-                          img.src = re.target?.result as string;
-                        };
-                        reader.readAsDataURL(file);
-                      }
-                    };
-                    input.click();
-                  }}
-                  className="w-full py-2 px-4 bg-slate-100 text-slate-700 rounded-lg font-bold text-xs hover:bg-slate-200 transition-all flex items-center justify-center gap-2 border border-slate-200"
-                >
-                  <Upload size={14} />
-                  Fazer Upload
-                </button>
-                <p className="text-[9px] text-slate-400">Dica: Use links de imagens sempre que possível para não exceder o limite de salvamento do layout.</p>
+                <p className="text-[10px] text-slate-400">Recomendamos usar links externos (Google Drive, Imgur, etc) para maior estabilidade.</p>
                 <div className="relative">
-                  <p className="text-[10px] text-slate-500 mb-1">Ou insira o link</p>
+                  <p className="text-[10px] text-slate-500 mb-1">Insira o link da imagem</p>
                   <input
                     type="text"
                     value={currentBlock.data.url}
@@ -1087,33 +1028,13 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                       <div className="space-y-4">
                         <div className="space-y-2">
                           <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">URL da Imagem</label>
-                          <div className="flex gap-2">
-                            <input
-                              type="text"
-                              value={item.data.url}
-                              onChange={(e) => onUpdateBlock(selectedBlock.id, { url: e.target.value }, undefined, i)}
-                              className="flex-1 p-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                              placeholder="https://..."
-                            />
-                            <label className="p-3 bg-slate-100 hover:bg-slate-200 rounded-xl cursor-pointer transition-all text-slate-600">
-                              <ImageIcon size={20} />
-                              <input
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                onChange={(e) => {
-                                  const file = e.target.files?.[0];
-                                  if (file) {
-                                    const reader = new FileReader();
-                                    reader.onloadend = () => {
-                                      onUpdateBlock(selectedBlock.id, { url: reader.result as string }, undefined, i);
-                                    };
-                                    reader.readAsDataURL(file);
-                                  }
-                                }}
-                              />
-                            </label>
-                          </div>
+                          <input
+                            type="text"
+                            value={item.data.url}
+                            onChange={(e) => onUpdateBlock(selectedBlock.id, { url: e.target.value }, undefined, i)}
+                            className="w-full p-3 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all bg-slate-50"
+                            placeholder="https://..."
+                          />
                         </div>
 
                         <div className="space-y-2">
